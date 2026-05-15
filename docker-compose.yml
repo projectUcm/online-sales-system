@@ -34,7 +34,8 @@ services:
     ports:
       - "8001:8001"
     environment:
-      MERCADOPAGO_ACCESS_TOKEN: ""
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
+      MERCADOPAGO_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY}
 
   frontend:
     build: ./frontend-angular

@@ -133,6 +133,7 @@ jobs:
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           sed -i "s/ACCOUNT_ID/$ACCOUNT_ID/g" .aws/task-def-payment.json
           sed -i "s|MP_TOKEN_PLACEHOLDER|${{ secrets.MERCADOPAGO_ACCESS_TOKEN }}|g" .aws/task-def-payment.json
+          sed -i "s|MP_PUBLIC_KEY_PLACEHOLDER|${{ secrets.MERCADOPAGO_PUBLIC_KEY }}|g" .aws/task-def-payment.json
 
       - name: Render task definition
         id: render
