@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
+
+const HTTP_TIMEOUT = 15000;
 
 export interface Product {
   id: number;
@@ -31,11 +33,11 @@ export class ApiService {
   constructor(private http: HttpClient) {}
 
   getProducts(): Promise<Product[]> {
-    return firstValueFrom(this.http.get<Product[]>(`${this.baseUrl}/products/`));
+    return firstValueFrom(this.http.get<Product[]>(`${this.baseUrl}/products/`).pipe(timeout(HTTP_TIMEOUT)));
   }
 
   getCart(): Promise<CartItem[]> {
-    return firstValueFrom(this.http.get<CartItem[]>(`${this.baseUrl}/cart/`));
+    return firstValueFrom(this.http.get<CartItem[]>(`${this.baseUrl}/cart/`).pipe(timeout(HTTP_TIMEOUT)));
   }
 
   addToCart(productId: number, quantity = 1): Promise<{ message: string }> {
@@ -43,13 +45,13 @@ export class ApiService {
       this.http.post<{ message: string }>(`${this.baseUrl}/cart/add`, {
         product_id: productId,
         quantity,
-      })
+      }).pipe(timeout(HTTP_TIMEOUT))
     );
   }
 
   removeFromCart(itemId: number): Promise<{ message: string }> {
     return firstValueFrom(
-      this.http.delete<{ message: string }>(`${this.baseUrl}/cart/remove/${itemId}`)
+      this.http.delete<{ message: string }>(`${this.baseUrl}/cart/remove/${itemId}`).pipe(timeout(HTTP_TIMEOUT))
     );
   }
 
@@ -67,7 +69,7 @@ export class ApiService {
         expiry_month: expiryMonth,
         expiry_year: expiryYear,
         security_code: securityCode,
-      })
+      }).pipe(timeout(30000))
     );
   }
 }

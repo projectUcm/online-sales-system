@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService, CartItem } from '../../services/api';
@@ -17,7 +17,8 @@ export class Cart implements OnInit {
 
   constructor(
     private api: ApiService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   async ngOnInit() {
@@ -30,6 +31,8 @@ export class Cart implements OnInit {
     } catch {
       this.message = 'Error al cargar el carrito';
       this.error = true;
+    } finally {
+      this.cdr.markForCheck();
     }
   }
 
@@ -44,6 +47,7 @@ export class Cart implements OnInit {
     } catch {
       this.message = 'Error al eliminar el producto';
       this.error = true;
+      this.cdr.markForCheck();
     }
   }
 

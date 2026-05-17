@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -17,7 +17,7 @@ export class LoginComponent {
   error = '';
   loading = false;
 
-  constructor(private auth: AuthService, private router: Router) {}
+  constructor(private auth: AuthService, private router: Router, private cdr: ChangeDetectorRef) {}
 
   async submit() {
     if (!this.email || !this.password) {
@@ -26,6 +26,7 @@ export class LoginComponent {
     }
     this.loading = true;
     this.error = '';
+    this.cdr.markForCheck();
     try {
       await this.auth.login(this.email, this.password);
       this.router.navigate(['/products']);
@@ -33,6 +34,7 @@ export class LoginComponent {
       this.error = 'Credenciales incorrectas';
     } finally {
       this.loading = false;
+      this.cdr.markForCheck();
     }
   }
 }

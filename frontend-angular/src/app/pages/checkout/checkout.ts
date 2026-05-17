@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ApiService, PaymentResult } from '../../services/api';
@@ -20,7 +20,7 @@ export class CheckoutComponent {
   loading = false;
   error = '';
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private cdr: ChangeDetectorRef) {}
 
   async pay() {
     if (!this.cardNumber.trim()) {
@@ -54,6 +54,7 @@ export class CheckoutComponent {
       this.error = 'Error al procesar el pago';
     } finally {
       this.loading = false;
+      this.cdr.markForCheck();
     }
   }
 }

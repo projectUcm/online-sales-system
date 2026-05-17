@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService, Product } from '../../services/api';
 
@@ -13,7 +13,7 @@ export class ProductsComponent implements OnInit {
   message = '';
   error = false;
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private cdr: ChangeDetectorRef) {}
 
   async ngOnInit() {
     try {
@@ -21,6 +21,8 @@ export class ProductsComponent implements OnInit {
     } catch {
       this.message = 'Error al cargar los productos';
       this.error = true;
+    } finally {
+      this.cdr.markForCheck();
     }
   }
 
@@ -32,6 +34,8 @@ export class ProductsComponent implements OnInit {
     } catch {
       this.message = 'Error al agregar al carrito';
       this.error = true;
+    } finally {
+      this.cdr.markForCheck();
     }
   }
 }
