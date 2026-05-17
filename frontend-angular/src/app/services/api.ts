@@ -26,7 +26,7 @@ export interface PaymentResult {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private baseUrl = 'http://online-sales-alb-667999176.us-east-1.elb.amazonaws.com';
+  private baseUrl = 'http://localhost:8000';
 
   constructor(private http: HttpClient) {}
 
