@@ -28,30 +28,38 @@ export interface PaymentResult {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private baseUrl = 'http://localhost:8000';
+  private baseUrl = 'http://online-sales-alb-667999176.us-east-1.elb.amazonaws.com';
 
   constructor(private http: HttpClient) {}
 
   getProducts(): Promise<Product[]> {
-    return firstValueFrom(this.http.get<Product[]>(`${this.baseUrl}/products/`).pipe(timeout(HTTP_TIMEOUT)));
+    return firstValueFrom(
+      this.http.get<Product[]>(`${this.baseUrl}/products/`).pipe(timeout(HTTP_TIMEOUT)),
+    );
   }
 
   getCart(): Promise<CartItem[]> {
-    return firstValueFrom(this.http.get<CartItem[]>(`${this.baseUrl}/cart/`).pipe(timeout(HTTP_TIMEOUT)));
+    return firstValueFrom(
+      this.http.get<CartItem[]>(`${this.baseUrl}/cart/`).pipe(timeout(HTTP_TIMEOUT)),
+    );
   }
 
   addToCart(productId: number, quantity = 1): Promise<{ message: string }> {
     return firstValueFrom(
-      this.http.post<{ message: string }>(`${this.baseUrl}/cart/add`, {
-        product_id: productId,
-        quantity,
-      }).pipe(timeout(HTTP_TIMEOUT))
+      this.http
+        .post<{ message: string }>(`${this.baseUrl}/cart/add`, {
+          product_id: productId,
+          quantity,
+        })
+        .pipe(timeout(HTTP_TIMEOUT)),
     );
   }
 
   removeFromCart(itemId: number): Promise<{ message: string }> {
     return firstValueFrom(
-      this.http.delete<{ message: string }>(`${this.baseUrl}/cart/remove/${itemId}`).pipe(timeout(HTTP_TIMEOUT))
+      this.http
+        .delete<{ message: string }>(`${this.baseUrl}/cart/remove/${itemId}`)
+        .pipe(timeout(HTTP_TIMEOUT)),
     );
   }
 
@@ -63,13 +71,15 @@ export class ApiService {
     securityCode: string,
   ): Promise<PaymentResult> {
     return firstValueFrom(
-      this.http.post<PaymentResult>(`${this.baseUrl}/checkout/`, {
-        card_number: cardNumber,
-        cardholder_name: cardholderName,
-        expiry_month: expiryMonth,
-        expiry_year: expiryYear,
-        security_code: securityCode,
-      }).pipe(timeout(30000))
+      this.http
+        .post<PaymentResult>(`${this.baseUrl}/checkout/`, {
+          card_number: cardNumber,
+          cardholder_name: cardholderName,
+          expiry_month: expiryMonth,
+          expiry_year: expiryYear,
+          security_code: securityCode,
+        })
+        .pipe(timeout(30000)),
     );
   }
 }
