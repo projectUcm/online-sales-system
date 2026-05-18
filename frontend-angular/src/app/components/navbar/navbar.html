@@ -10,9 +10,24 @@
   @if (auth.isLoggedIn()) {
     <div class="nav-links">
       <a routerLink="/products" routerLinkActive="active">Productos</a>
-      <a routerLink="/cart" routerLinkActive="active">Carrito</a>
       <a routerLink="/checkout" routerLinkActive="active">Checkout</a>
       <button class="nav-logout" (click)="auth.logout()">Salir →</button>
+
+      <div class="nav-cart-group">
+        <button class="nav-cart-btn" (click)="drawer.toggle()" title="Abrir carrito">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M16 10a4 4 0 01-8 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          @if (cart.count() > 0) {
+            <span class="cart-badge">{{ cart.count() }}</span>
+          }
+        </button>
+        <button class="nav-hamburger" (click)="drawer.toggle()" title="Menú carrito">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
     </div>
   } @else {
     <div class="nav-links">

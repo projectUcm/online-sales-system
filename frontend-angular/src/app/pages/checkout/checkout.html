@@ -1,114 +1,225 @@
-<div class="page">
-  <div class="checkout-layout">
+<div class="page checkout-page">
 
-    <div class="checkout-main">
-      <h1>Checkout</h1>
-      <p class="checkout-sub">Completa los datos de tu tarjeta para pagar</p>
-
-      @if (error) {
-        <div class="alert alert-err">{{ error }}</div>
-      }
-
-      @if (result) {
-        <div [class]="result.status === 'approved' ? 'payment-result approved' : 'payment-result rejected'">
-          @if (result.status === 'approved') {
-            <div class="result-icon">✓</div>
-            <h2>¡Pago aprobado!</h2>
-            <p>ID de transacción: <strong>{{ result.transaction_id }}</strong></p>
-            @if (result.amount) {
-              <p>Monto: <strong>${{ result.amount | number:'1.0-0' }}</strong></p>
-            }
-          } @else {
-            <div class="result-icon err">✕</div>
-            <h2>Pago rechazado</h2>
-            <p>{{ result.message || 'No se pudo procesar el pago. Intenta nuevamente.' }}</p>
-          }
+  <!-- RESULTADO APROBADO / RECHAZADO -->
+  @if (result) {
+    <div class="result-screen" [class.approved]="result.status === 'approved'" [class.rejected]="result.status !== 'approved'">
+      @if (result.status === 'approved') {
+        <div class="result-icon-wrap ok">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
+        <h1>¡Pago aprobado!</h1>
+        <p class="result-sub">Tu pedido ha sido procesado exitosamente.</p>
+        <div class="result-detail">
+          <div class="result-row"><span>ID transacción</span><strong>#{{ result.transaction_id }}</strong></div>
+          @if (result.amount) {
+            <div class="result-row"><span>Total pagado</span><strong>${{ result.amount | number:'1.0-0' }} CLP</strong></div>
+          }
+          <div class="result-row"><span>Estado</span><span class="status-ok">Aprobado</span></div>
+        </div>
+      } @else {
+        <div class="result-icon-wrap err">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h1>Pago rechazado</h1>
+        <p class="result-sub">{{ result.message || 'No se pudo procesar el pago.' }}</p>
+        <button class="btn btn-primary" style="margin-top:24px" (click)="result = null">
+          Intentar nuevamente
+        </button>
       }
+    </div>
+  }
 
-      @if (!result) {
-        <div class="card-form">
-          <div class="card-preview">
-            <div class="card-chip">
-              <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
-                <rect width="32" height="24" rx="4" fill="rgba(255,255,255,0.15)"/>
-                <rect x="2" y="8" width="28" height="8" rx="2" fill="rgba(255,255,255,0.1)"/>
-              </svg>
-            </div>
-            <div class="card-number-preview">{{ cardNumber || '•••• •••• •••• ••••' }}</div>
-            <div class="card-bottom">
-              <div>
-                <div class="card-label">Titular</div>
-                <div class="card-value">{{ cardholderName || 'NOMBRE APELLIDO' }}</div>
+  @if (!result) {
+    <!-- BREADCRUMB -->
+    <div class="breadcrumb">
+      <span class="bc-done">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="var(--ok)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Carrito
+      </span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="var(--t3)" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span class="bc-active">Pago</span>
+    </div>
+
+    <div class="checkout-layout">
+
+      <!-- COLUMNA IZQUIERDA: FORMULARIO -->
+      <div class="checkout-form-col">
+
+        @if (error) {
+          <div class="alert alert-err">{{ error }}</div>
+        }
+
+        <!-- Tarjeta preview -->
+        <div class="card-section">
+          <div class="card-preview" [class.flipped]="cvvFocused">
+            <div class="card-front">
+              <div class="card-front-top">
+                <div class="card-chip">
+                  <svg width="30" height="22" viewBox="0 0 30 22" fill="none">
+                    <rect width="30" height="22" rx="3" fill="rgba(255,255,255,.18)"/>
+                    <rect x="2" y="7" width="26" height="8" rx="2" fill="rgba(255,255,255,.1)"/>
+                  </svg>
+                </div>
+                @if (getCardBrand() === 'visa') {
+                  <span class="card-brand">VISA</span>
+                } @else if (getCardBrand() === 'mastercard') {
+                  <div class="mc-logo">
+                    <div class="mc-r"></div><div class="mc-l"></div>
+                  </div>
+                }
               </div>
-              <div>
-                <div class="card-label">Vence</div>
-                <div class="card-value">{{ expiryMonth || 'MM' }}/{{ expiryYear || 'AA' }}</div>
+              <div class="card-number-disp">{{ formattedCard }}</div>
+              <div class="card-bottom-row">
+                <div>
+                  <div class="card-lbl">TITULAR</div>
+                  <div class="card-val">{{ cardholderName || 'NOMBRE APELLIDO' }}</div>
+                </div>
+                <div>
+                  <div class="card-lbl">VENCE</div>
+                  <div class="card-val">{{ formattedExpiry }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-back">
+              <div class="card-stripe"></div>
+              <div class="card-cvv-row">
+                <span class="card-lbl">CVV</span>
+                <div class="card-cvv-box">{{ securityCode || '•••' }}</div>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Formulario -->
+        <div class="form-section">
+          <h2 class="section-title">Datos de la tarjeta</h2>
 
           <div class="field">
             <label>Número de tarjeta</label>
-            <input [(ngModel)]="cardNumber" placeholder="4009 1753 3280 6176" maxlength="19" />
+            <input
+              [value]="cardNumber"
+              (input)="formatCardNumber($event)"
+              placeholder="4509 9535 6623 3704"
+              maxlength="19"
+              inputmode="numeric" />
           </div>
 
           <div class="field">
             <label>Nombre del titular</label>
-            <input [(ngModel)]="cardholderName" placeholder="Como aparece en la tarjeta" style="text-transform:uppercase" />
+            <input
+              [(ngModel)]="cardholderName"
+              placeholder="Como aparece en la tarjeta"
+              style="text-transform:uppercase" />
           </div>
 
-          <div class="card-row">
+          <div class="card-fields-row">
             <div class="field">
-              <label>Mes de vencimiento</label>
-              <input [(ngModel)]="expiryMonth" placeholder="11" maxlength="2" />
+              <label>Mes</label>
+              <input [(ngModel)]="expiryMonth" placeholder="11" maxlength="2" inputmode="numeric" />
             </div>
             <div class="field">
-              <label>Año de vencimiento</label>
-              <input [(ngModel)]="expiryYear" placeholder="25" maxlength="2" />
+              <label>Año</label>
+              <input [(ngModel)]="expiryYear" placeholder="30" maxlength="2" inputmode="numeric" />
             </div>
             <div class="field">
               <label>CVV</label>
-              <input [(ngModel)]="securityCode" placeholder="123" maxlength="4" type="password" />
+              <input
+                [(ngModel)]="securityCode"
+                placeholder="•••"
+                maxlength="4"
+                type="password"
+                (focus)="cvvFocused = true"
+                (blur)="cvvFocused = false" />
             </div>
           </div>
-
-          <button class="btn btn-primary pay-btn" (click)="pay()" [disabled]="loading">
-            @if (loading) {
-              <span class="pay-spinner"></span> Procesando...
-            } @else {
-              Pagar ahora
-            }
-          </button>
         </div>
-      }
-    </div>
 
-    <div class="checkout-info">
-      <div class="info-card">
-        <h2>Pago seguro</h2>
-        <div class="secure-badge">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <button class="pay-btn" (click)="pay()" [disabled]="loading">
+          @if (loading) {
+            <span class="pay-spinner"></span>
+            Procesando pago...
+          } @else {
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M2 10h20" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+            Pagar ${{ cart.total() | number:'1.0-0' }} CLP
+          }
+        </button>
+
+        <div class="secure-row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
             <path d="M12 2l7 4v6c0 4.4-2.9 8.5-7 10-4.1-1.5-7-5.6-7-10V6l7-4z" stroke="var(--ok)" stroke-width="1.8" stroke-linejoin="round"/>
             <path d="M9 12l2 2 4-4" stroke="var(--ok)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          Procesado por MercadoPago
+          <span>Pago seguro procesado por <strong>MercadoPago</strong></span>
         </div>
-        <div class="test-cards">
-          <p class="test-title">Tarjetas de prueba</p>
-          <div class="test-card-item">
-            <span class="brand-tag mc">MC</span>
-            <code>5241 0198 2664 6950</code>
+
+      </div>
+
+      <!-- COLUMNA DERECHA: RESUMEN -->
+      <div class="checkout-summary-col">
+        <div class="summary-card">
+          <h2 class="section-title">Resumen del pedido</h2>
+
+          @if (cart.items().length === 0) {
+            <p class="empty-cart-msg">No hay productos en tu carrito.</p>
+          } @else {
+            <div class="summary-items">
+              @for (item of cart.items(); track item.id) {
+                <div class="summary-item">
+                  <div class="summary-item-img">
+                    <img [src]="getProductImage(item.product_name)" [alt]="item.product_name" />
+                  </div>
+                  <div class="summary-item-info">
+                    <span class="summary-item-name">{{ item.product_name }}</span>
+                    <span class="summary-item-qty">x{{ item.quantity }}</span>
+                  </div>
+                  <span class="summary-item-price">${{ item.price * item.quantity | number:'1.0-0' }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="summary-divider"></div>
+
+            <div class="summary-line">
+              <span>Subtotal</span>
+              <span>${{ cart.total() | number:'1.0-0' }}</span>
+            </div>
+            <div class="summary-line">
+              <span>Envío</span>
+              <span class="free-tag">GRATIS</span>
+            </div>
+
+            <div class="summary-divider"></div>
+
+            <div class="summary-total-line">
+              <span>Total</span>
+              <span>${{ cart.total() | number:'1.0-0' }} <small>CLP</small></span>
+            </div>
+          }
+
+          <div class="test-cards-section">
+            <p class="test-title">Tarjetas de prueba</p>
+            <div class="test-card-entry">
+              <span class="brand-chip visa">VISA</span>
+              <code>4509 9535 6623 3704</code>
+            </div>
+            <div class="test-card-entry">
+              <span class="brand-chip mc">MC</span>
+              <code>5031 7557 3453 0604</code>
+            </div>
+            <div class="test-hint">CVV: <strong>123</strong> · Vence: <strong>11/30</strong></div>
+            <div class="test-hint" style="color:var(--accent)">Titular: <strong>APRO</strong></div>
           </div>
-          <div class="test-card-item">
-            <span class="brand-tag visa">VISA</span>
-            <code>4009 1753 3280 6176</code>
-          </div>
-          <div class="test-hint">CVV: 123 · Vence: 11/30</div>
-          <div class="test-hint" style="color:var(--accent);font-weight:600">Nombre titular: APRO</div>
         </div>
       </div>
-    </div>
 
-  </div>
+    </div>
+  }
+
 </div>
