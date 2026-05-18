@@ -4,7 +4,6 @@ from app.services.mercadopago_service import process_payment
 
 router = APIRouter(tags=["Payment"])
 
-
 class PaymentRequest(BaseModel):
     card_number: str
     cardholder_name: str = ""
