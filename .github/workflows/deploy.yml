@@ -92,6 +92,26 @@ jobs:
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           sed -i "s/ACCOUNT_ID/$ACCOUNT_ID/g" .aws/task-def-backend.json
+          sed -i "s/NOTIFICATION_EC2_HOST/${{ secrets.EC2_NOTIFICATION_HOST }}/g" .aws/task-def-backend.json
+          sed -i "s|\"value\": \"\"|\"value\": \"\"|g" .aws/task-def-backend.json
+          python3 -c "
+import json, sys
+with open('.aws/task-def-backend.json') as f: td = json.load(f)
+env = td['containerDefinitions'][0]['environment']
+updates = {
+  'AWS_ACCESS_KEY_ID': '${{ secrets.AWS_ACCESS_KEY_ID }}',
+  'AWS_SECRET_ACCESS_KEY': '${{ secrets.AWS_SECRET_ACCESS_KEY }}',
+  'SES_SENDER_EMAIL': '${{ secrets.SES_SENDER_EMAIL }}',
+  'S3_BUCKET_NAME': '${{ secrets.S3_BUCKET_NAME }}',
+  'TWILIO_ACCOUNT_SID': '${{ secrets.TWILIO_ACCOUNT_SID }}',
+  'TWILIO_AUTH_TOKEN': '${{ secrets.TWILIO_AUTH_TOKEN }}',
+  'TWILIO_FROM_NUMBER': '${{ secrets.TWILIO_FROM_NUMBER }}',
+  'SNS_TOPIC_ARN': '${{ secrets.SNS_TOPIC_ARN }}',
+}
+for e in env:
+  if e['name'] in updates: e['value'] = updates[e['name']]
+with open('.aws/task-def-backend.json', 'w') as f: json.dump(td, f, indent=2)
+"
 
       - name: Render task definition backend
         id: render-backend
@@ -196,18 +216,28 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Obtener Account ID
+        id: get-account
+        run: echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
       - name: Deploy via SSH a EC2
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          AWS_ACCOUNT_ID: ${{ steps.get-account.outputs.account_id }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
           host: ${{ secrets.EC2_NOTIFICATION_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_ACCOUNT_ID
           script: |
-            AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
             aws ecr get-login-password --region us-east-1 | \
               docker login --username AWS --password-stdin \
-              ${AWS_ACCOUNT}.dkr.ecr.us-east-1.amazonaws.com
-            docker pull ${AWS_ACCOUNT}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest
+              ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com
+            docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest
             docker stop notification-service 2>/dev/null || true
             docker rm notification-service 2>/dev/null || true
             docker run -d \
@@ -215,11 +245,11 @@ jobs:
               --restart always \
               -p 8002:8002 \
               -e AWS_REGION=us-east-1 \
-              -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-              -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+              -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
               -e SES_SENDER_EMAIL=${{ secrets.SES_SENDER_EMAIL }} \
               -e TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }} \
               -e TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }} \
               -e TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }} \
               -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
-              ${AWS_ACCOUNT}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest
+              ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest

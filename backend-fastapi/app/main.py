@@ -1,12 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import Base, engine, SessionLocal
+from app.database import Base, engine, SessionLocal, run_migrations
 from app.models.product import Product
 from app.models.user import User  # noqa: F401
 from app.models.cart import CartItem  # noqa: F401
 from app.routers import products, users, cart, checkout, files
 
 Base.metadata.create_all(bind=engine)
+run_migrations()
+
+from app.services.s3_service import ensure_bucket_exists
+ensure_bucket_exists()
 
 app = FastAPI(title="Online Sales API")
 

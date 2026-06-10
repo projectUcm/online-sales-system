@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.user import User
 from app.services.auth_service import get_current_user
 from app.services.s3_service import upload_file, list_user_files, delete_file, get_presigned_url
-from app.services.sms_service import send_file_upload_sms
+from app.services.notification_client import send_file_upload_sms
 from app.config.settings import settings
 
 router = APIRouter(prefix="/files", tags=["Files"])
@@ -35,9 +35,10 @@ async def upload(
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     available = STORAGE_LIMIT - current_user.storage_used
-    if phone:
+    sms_phone = phone or current_user.phone or ""
+    if sms_phone:
         try:
-            send_file_upload_sms(phone, file.filename, now, current_user.storage_used, available)
+            send_file_upload_sms(sms_phone, file.filename, now, current_user.storage_used, available)
         except Exception as e:
             print(f"[WARN] SMS no enviado: {e}")
 

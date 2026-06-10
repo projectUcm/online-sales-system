@@ -4,7 +4,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.user_schema import UserRegister, UserLogin, UserVerify, Token
 from app.services.auth_service import hash_password, verify_password, create_token, generate_verification_code
-from app.services.email_service import send_verification_email
+from app.services.notification_client import send_verification_email
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -18,6 +18,7 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
         name=data.name,
         email=data.email,
         hashed_password=hash_password(data.password),
+        phone=data.phone or "",
         is_verified=False,
         verification_code=code,
         storage_used=0,
