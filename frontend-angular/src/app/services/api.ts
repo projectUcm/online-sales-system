@@ -42,7 +42,7 @@ export interface StorageInfo {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private baseUrl = 'http://online-sales-alb-667999176.us-east-1.elb.amazonaws.com';
+  private baseUrl = 'http://online-sales-alb-1964549465.us-east-1.elb.amazonaws.com';
 
   constructor(private http: HttpClient) {}
 
