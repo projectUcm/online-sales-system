@@ -194,6 +194,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Inyectar variables en task definition
+        run: |
+          sed -i "s/ACCOUNT_ID/${{ secrets.AWS_ACCOUNT_ID }}/g" .aws/task-def-frontend.json
+
       - name: Render task definition frontend
         id: render-frontend
         uses: aws-actions/amazon-ecs-render-task-definition@v1
