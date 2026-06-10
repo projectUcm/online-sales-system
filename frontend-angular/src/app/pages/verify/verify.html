@@ -1,0 +1,50 @@
+<div class="auth-page">
+  <div class="auth-glow"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg width="32" height="32" viewBox="0 0 22 22" fill="none">
+        <polygon points="11,1 21,6 21,16 11,21 1,16 1,6" fill="#7c6af7" opacity=".9"/>
+        <polygon points="11,5 17,8.5 17,15.5 11,19 5,15.5 5,8.5" fill="none" stroke="#fff" stroke-width="1.2"/>
+      </svg>
+      <span>NEXSTORE</span>
+    </div>
+
+    <div class="verify-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="4" width="20" height="16" rx="3" stroke="#7c6af7" stroke-width="1.5"/>
+        <path d="M2 8l10 6 10-6" stroke="#7c6af7" stroke-width="1.5"/>
+      </svg>
+    </div>
+
+    <h1 class="auth-title">Verifica tu cuenta</h1>
+    <p class="auth-sub">Ingresa el código de 6 dígitos enviado a tu correo</p>
+
+    @if (error) {
+      <div class="alert alert-err">{{ error }}</div>
+    }
+    @if (success) {
+      <div class="alert alert-ok">{{ success }}</div>
+    }
+
+    <div class="field">
+      <label>Email</label>
+      <input [(ngModel)]="email" type="email" placeholder="tu@email.com" />
+    </div>
+
+    <div class="field">
+      <label>Código de verificación</label>
+      <input [(ngModel)]="code" type="text" placeholder="123456" maxlength="6"
+             class="code-input" autocomplete="one-time-code" />
+    </div>
+
+    <button class="btn btn-primary auth-btn" (click)="submit()" [disabled]="loading">
+      @if (loading) {
+        <span class="spinner"></span> Verificando...
+      } @else {
+        Verificar cuenta
+      }
+    </button>
+
+    <p class="auth-footer">¿Ya verificaste? <a routerLink="/login">Inicia sesión</a></p>
+  </div>
+</div>

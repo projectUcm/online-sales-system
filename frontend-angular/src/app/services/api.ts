@@ -26,6 +26,20 @@ export interface PaymentResult {
   message?: string;
 }
 
+export interface FileItem {
+  name: string;
+  size: number;
+  last_modified: string;
+  key: string;
+}
+
+export interface StorageInfo {
+  files: FileItem[];
+  storage_used: number;
+  storage_available: number;
+  storage_limit: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private baseUrl = 'http://online-sales-alb-667999176.us-east-1.elb.amazonaws.com';
@@ -46,19 +60,16 @@ export class ApiService {
 
   addToCart(productId: number, quantity = 1): Promise<{ message: string }> {
     return firstValueFrom(
-      this.http
-        .post<{ message: string }>(`${this.baseUrl}/cart/add`, {
-          product_id: productId,
-          quantity,
-        })
-        .pipe(timeout(HTTP_TIMEOUT)),
+      this.http.post<{ message: string }>(`${this.baseUrl}/cart/add`, {
+        product_id: productId,
+        quantity,
+      }).pipe(timeout(HTTP_TIMEOUT)),
     );
   }
 
   removeFromCart(itemId: number): Promise<{ message: string }> {
     return firstValueFrom(
-      this.http
-        .delete<{ message: string }>(`${this.baseUrl}/cart/remove/${itemId}`)
+      this.http.delete<{ message: string }>(`${this.baseUrl}/cart/remove/${itemId}`)
         .pipe(timeout(HTTP_TIMEOUT)),
     );
   }
@@ -71,15 +82,42 @@ export class ApiService {
     securityCode: string,
   ): Promise<PaymentResult> {
     return firstValueFrom(
-      this.http
-        .post<PaymentResult>(`${this.baseUrl}/checkout/`, {
-          card_number: cardNumber,
-          cardholder_name: cardholderName,
-          expiry_month: expiryMonth,
-          expiry_year: expiryYear,
-          security_code: securityCode,
-        })
-        .pipe(timeout(30000)),
+      this.http.post<PaymentResult>(`${this.baseUrl}/checkout/`, {
+        card_number: cardNumber,
+        cardholder_name: cardholderName,
+        expiry_month: expiryMonth,
+        expiry_year: expiryYear,
+        security_code: securityCode,
+      }).pipe(timeout(30000)),
+    );
+  }
+
+  getFiles(): Promise<StorageInfo> {
+    return firstValueFrom(
+      this.http.get<StorageInfo>(`${this.baseUrl}/files/`).pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  uploadFile(file: File, phone: string = ''): Promise<any> {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (phone) fd.append('phone', phone);
+    return firstValueFrom(
+      this.http.post(`${this.baseUrl}/files/upload`, fd).pipe(timeout(60000)),
+    );
+  }
+
+  deleteFile(filename: string): Promise<any> {
+    return firstValueFrom(
+      this.http.delete(`${this.baseUrl}/files/${encodeURIComponent(filename)}`)
+        .pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  getDownloadUrl(filename: string): Promise<{ url: string }> {
+    return firstValueFrom(
+      this.http.get<{ url: string }>(`${this.baseUrl}/files/download/${encodeURIComponent(filename)}`)
+        .pipe(timeout(HTTP_TIMEOUT)),
     );
   }
 }

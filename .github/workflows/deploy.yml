@@ -8,6 +8,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECS_CLUSTER: online-sales-cluster
+  EC2_NOTIFICATION_HOST: ${{ secrets.EC2_NOTIFICATION_HOST }}
 
 jobs:
   build:
@@ -18,6 +19,7 @@ jobs:
       backend-image: ${{ steps.build-backend.outputs.image }}
       payment-image: ${{ steps.build-payment.outputs.image }}
       frontend-image: ${{ steps.build-frontend.outputs.image }}
+      notification-image: ${{ steps.build-notification.outputs.image }}
 
     steps:
       - name: Checkout repositorio
@@ -39,10 +41,8 @@ jobs:
         id: build-backend
         run: |
           IMAGE=${{ steps.login-ecr.outputs.registry }}/backend-fastapi:latest
-
           docker build -t $IMAGE ./backend-fastapi
           docker push $IMAGE
-
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
       # PAYMENT
@@ -50,10 +50,8 @@ jobs:
         id: build-payment
         run: |
           IMAGE=${{ steps.login-ecr.outputs.registry }}/payment-service:latest
-
           docker build -t $IMAGE ./payment-service
           docker push $IMAGE
-
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
       # FRONTEND
@@ -61,10 +59,17 @@ jobs:
         id: build-frontend
         run: |
           IMAGE=${{ steps.login-ecr.outputs.registry }}/frontend-angular:latest
-
           docker build --no-cache -t $IMAGE ./frontend-angular
           docker push $IMAGE
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
+      # NOTIFICATION SERVICE
+      - name: Build y push Notification Service
+        id: build-notification
+        run: |
+          IMAGE=${{ steps.login-ecr.outputs.registry }}/notification-service:latest
+          docker build -t $IMAGE ./notification-service
+          docker push $IMAGE
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
   deploy-backend:
@@ -82,6 +87,11 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Inyectar variables backend
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          sed -i "s/ACCOUNT_ID/$ACCOUNT_ID/g" .aws/task-def-backend.json
 
       - name: Render task definition backend
         id: render-backend
@@ -170,4 +180,46 @@ jobs:
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
 
-#hola
+  deploy-notification:
+    name: Deploy Notification Service (EC2 via SSH)
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy via SSH a EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_NOTIFICATION_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+            aws ecr get-login-password --region us-east-1 | \
+              docker login --username AWS --password-stdin \
+              ${AWS_ACCOUNT}.dkr.ecr.us-east-1.amazonaws.com
+            docker pull ${AWS_ACCOUNT}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest
+            docker stop notification-service 2>/dev/null || true
+            docker rm notification-service 2>/dev/null || true
+            docker run -d \
+              --name notification-service \
+              --restart always \
+              -p 8002:8002 \
+              -e AWS_REGION=us-east-1 \
+              -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              -e SES_SENDER_EMAIL=${{ secrets.SES_SENDER_EMAIL }} \
+              -e TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }} \
+              -e TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }} \
+              -e TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }} \
+              -e SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }} \
+              ${AWS_ACCOUNT}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest

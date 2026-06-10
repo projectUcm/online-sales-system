@@ -7,3 +7,6 @@ passlib[bcrypt]
 bcrypt==3.2.2
 requests
 pydantic-settings
+boto3
+python-multipart
+twilio

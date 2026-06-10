@@ -12,16 +12,18 @@ import { AuthService } from '../../services/auth';
   styleUrl: './register.css',
 })
 export class RegisterComponent {
+  name = '';
   email = '';
   password = '';
+  phone = '';
   error = '';
   loading = false;
 
   constructor(private auth: AuthService, private router: Router) {}
 
   async submit() {
-    if (!this.email || !this.password) {
-      this.error = 'Ingresa email y contraseña';
+    if (!this.name || !this.email || !this.password) {
+      this.error = 'Ingresa nombre, email y contraseña';
       return;
     }
     if (this.password.length < 6) {
@@ -31,8 +33,8 @@ export class RegisterComponent {
     this.loading = true;
     this.error = '';
     try {
-      await this.auth.register(this.email, this.password);
-      this.router.navigate(['/login']);
+      await this.auth.register(this.name, this.email, this.password, this.phone);
+      this.router.navigate(['/verify'], { queryParams: { email: this.email } });
     } catch {
       this.error = 'Error al registrar. El email puede ya estar en uso.';
     } finally {

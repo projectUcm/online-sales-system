@@ -16,6 +16,7 @@ export class LoginComponent {
   password = '';
   error = '';
   loading = false;
+  needsVerify = false;
 
   constructor(private auth: AuthService, private router: Router, private cdr: ChangeDetectorRef) {}
 
@@ -26,12 +27,18 @@ export class LoginComponent {
     }
     this.loading = true;
     this.error = '';
+    this.needsVerify = false;
     this.cdr.markForCheck();
     try {
       await this.auth.login(this.email, this.password);
       this.router.navigate(['/products']);
-    } catch {
-      this.error = 'Credenciales incorrectas';
+    } catch (err: any) {
+      if (err?.status === 403) {
+        this.error = 'Tu cuenta no está verificada. Revisa tu correo.';
+        this.needsVerify = true;
+      } else {
+        this.error = 'Credenciales incorrectas';
+      }
     } finally {
       this.loading = false;
       this.cdr.markForCheck();

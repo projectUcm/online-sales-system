@@ -3,14 +3,16 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.cart import CartItem
 from app.models.product import Product
+from app.models.user import User
 from app.schemas.cart_schema import CartItemAdd
+from app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
 
 @router.get("/")
-def get_cart(db: Session = Depends(get_db)):
-    items = db.query(CartItem).all()
+def get_cart(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    items = db.query(CartItem).filter(CartItem.user_id == current_user.id).all()
     result = []
     for item in items:
         product = db.query(Product).filter(Product.id == item.product_id).first()
@@ -26,22 +28,25 @@ def get_cart(db: Session = Depends(get_db)):
 
 
 @router.post("/add")
-def add_to_cart(data: CartItemAdd, db: Session = Depends(get_db)):
+def add_to_cart(data: CartItemAdd, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     product = db.query(Product).filter(Product.id == data.product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
-    existing = db.query(CartItem).filter(CartItem.product_id == data.product_id).first()
+    existing = db.query(CartItem).filter(
+        CartItem.product_id == data.product_id,
+        CartItem.user_id == current_user.id,
+    ).first()
     if existing:
         existing.quantity += data.quantity
     else:
-        db.add(CartItem(product_id=data.product_id, quantity=data.quantity))
+        db.add(CartItem(product_id=data.product_id, quantity=data.quantity, user_id=current_user.id))
     db.commit()
     return {"message": "Producto agregado al carrito"}
 
 
 @router.delete("/remove/{item_id}")
-def remove_from_cart(item_id: int, db: Session = Depends(get_db)):
-    item = db.query(CartItem).filter(CartItem.id == item_id).first()
+def remove_from_cart(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    item = db.query(CartItem).filter(CartItem.id == item_id, CartItem.user_id == current_user.id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item no encontrado")
     db.delete(item)
@@ -50,7 +55,7 @@ def remove_from_cart(item_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/clear")
-def clear_cart(db: Session = Depends(get_db)):
-    db.query(CartItem).delete()
+def clear_cart(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db.query(CartItem).filter(CartItem.user_id == current_user.id).delete()
     db.commit()
     return {"message": "Carrito vaciado"}

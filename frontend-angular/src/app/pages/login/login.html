@@ -13,7 +13,12 @@
     <p class="auth-sub">Ingresa a tu cuenta para continuar</p>
 
     @if (error) {
-      <div class="alert alert-err">{{ error }}</div>
+      <div class="alert alert-err">
+        {{ error }}
+        @if (needsVerify) {
+          <br/><a routerLink="/verify" [queryParams]="{ email: email }" class="verify-link">Verificar cuenta →</a>
+        }
+      </div>
     }
 
     <div class="field">

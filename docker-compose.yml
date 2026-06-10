@@ -15,6 +15,20 @@ services:
       timeout: 5s
       retries: 5
 
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "8002:8002"
+    environment:
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      SES_SENDER_EMAIL: ${SES_SENDER_EMAIL:-noreply@nexstore.com}
+      SNS_TOPIC_ARN: ${SNS_TOPIC_ARN:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+
   backend:
     build: ./backend-fastapi
     ports:
@@ -22,11 +36,23 @@ services:
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/sales
       SECRET_KEY: change-me-in-production
-      PAYMENT_SERVICE_URL: http://app-pagos:8001/pay
+      PAYMENT_SERVICE_URL: http://app-pagos:8001/payment/pay
+      NOTIFICATION_SERVICE_URL: http://notification-service:8002
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      SES_SENDER_EMAIL: ${SES_SENDER_EMAIL:-noreply@nexstore.com}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-nexstore-user-files}
+      SNS_TOPIC_ARN: ${SNS_TOPIC_ARN:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
     depends_on:
       db:
         condition: service_healthy
       app-pagos:
+        condition: service_started
+      notification-service:
         condition: service_started
 
   app-pagos:

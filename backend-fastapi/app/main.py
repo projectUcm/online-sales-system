@@ -4,7 +4,7 @@ from app.database import Base, engine, SessionLocal
 from app.models.product import Product
 from app.models.user import User  # noqa: F401
 from app.models.cart import CartItem  # noqa: F401
-from app.routers import products, users, cart, checkout
+from app.routers import products, users, cart, checkout, files
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,6 +22,7 @@ app.include_router(products.router)
 app.include_router(users.router)
 app.include_router(cart.router)
 app.include_router(checkout.router)
+app.include_router(files.router)
 
 
 @app.on_event("startup")

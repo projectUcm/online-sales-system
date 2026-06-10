@@ -10,6 +10,7 @@
   @if (auth.isLoggedIn()) {
     <div class="nav-links">
       <a routerLink="/products" routerLinkActive="active">Productos</a>
+      <a routerLink="/files" routerLinkActive="active">Mis Archivos</a>
       <a routerLink="/checkout" routerLinkActive="active">Checkout</a>
       <button class="nav-logout" (click)="auth.logout()">Salir →</button>
 
