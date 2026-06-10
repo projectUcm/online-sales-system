@@ -7,15 +7,19 @@ class Settings(BaseSettings):
     payment_service_url: str = "http://online-sales-alb-667999176.us-east-1.elb.amazonaws.com/payment/pay"
     notification_service_url: str = "http://localhost:8002"
 
-    # AWS
+    # AWS (solo para S3)
     aws_region: str = "us-east-1"
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
 
-    # Amazon SES
-    ses_sender_email: str = "noreply@nexstore.com"
+    # SMTP email
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
 
-    # Amazon SNS / Twilio for SMS
+    # Twilio for SMS
     sns_topic_arn: str = ""
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""

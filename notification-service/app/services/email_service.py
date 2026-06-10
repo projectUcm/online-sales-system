@@ -1,32 +1,26 @@
-import boto3
-from botocore.exceptions import ClientError
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from app.config.settings import settings
 
 
-def _get_ses():
-    return boto3.client(
-        "ses",
-        region_name=settings.aws_region,
-        aws_access_key_id=settings.aws_access_key_id or None,
-        aws_secret_access_key=settings.aws_secret_access_key or None,
-    )
-
-
-def send_email(to: str, subject: str, body_html: str):
-    if not settings.aws_access_key_id:
+def send_email(to: str, subject: str, body_html: str) -> dict:
+    if not settings.smtp_user or not settings.smtp_password:
         print(f"[EMAIL MOCK] To:{to} | {subject}")
         return {"sent": True, "mock": True}
     try:
-        _get_ses().send_email(
-            Source=settings.ses_sender_email,
-            Destination={"ToAddresses": [to]},
-            Message={
-                "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {"Html": {"Data": body_html, "Charset": "UTF-8"}},
-            },
-        )
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = settings.smtp_from
+        msg["To"] = to
+        msg.attach(MIMEText(body_html, "html", "utf-8"))
+
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(settings.smtp_user, settings.smtp_password)
+            server.sendmail(settings.smtp_from, to, msg.as_string())
         return {"sent": True}
-    except ClientError as e:
-        msg = e.response["Error"]["Message"]
-        print(f"[SES ERROR] {msg}")
-        return {"sent": False, "error": msg}
+    except Exception as e:
+        print(f"[SMTP ERROR] {e}")
+        return {"sent": False, "error": str(e)}
