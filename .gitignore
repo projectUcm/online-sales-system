@@ -24,3 +24,8 @@ Thumbs.db
 
 # Docker
 *.log
+
+# SSH keys / credentials — never commit
+*.pem
+*.key
+*.p12
