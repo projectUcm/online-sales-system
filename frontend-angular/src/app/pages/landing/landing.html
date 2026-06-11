@@ -13,12 +13,14 @@
         Gaming, trabajo y productividad al siguiente nivel.<br>
         Los mejores productos, al mejor precio.
       </p>
-      <button class="hero-cta" (click)="enter()">
-        Explorar tienda
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+      <div class="hero-actions">
+        <button class="hero-cta" (click)="login()">
+          Iniciar sesión
+        </button>
+        <button class="hero-cta-outline" (click)="register()">
+          Crear cuenta
+        </button>
+      </div>
     </div>
     <div class="hero-visual">
       <div class="hero-card card-1">
@@ -97,7 +99,7 @@
         <span>Audio</span>
       </div>
     </div>
-    <button class="preview-cta" (click)="enter()">Ver todos los productos</button>
+    <button class="preview-cta" (click)="login()">Ver todos los productos</button>
   </section>
 
   <!-- Footer -->

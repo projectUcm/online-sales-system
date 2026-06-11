@@ -11,11 +11,15 @@ import { AuthService } from '../../services/auth';
 export class LandingComponent {
   constructor(private router: Router, private auth: AuthService) {}
 
-  enter() {
+  login() {
     if (this.auth.isLoggedIn()) {
       this.router.navigate([this.auth.isAdmin() ? '/admin' : '/products']);
     } else {
       this.router.navigate(['/login']);
     }
+  }
+
+  register() {
+    this.router.navigate(['/register']);
   }
 }
