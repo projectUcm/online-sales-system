@@ -145,6 +145,7 @@ def guest_checkout(data: GuestCheckoutRequest, background_tasks: BackgroundTasks
             order_ref = str(uuid.uuid4())[:8].upper()
             db.add(Order(
                 user_id=None,
+                guest_email=data.email,
                 order_ref=order_ref,
                 total=total,
                 status="approved",
