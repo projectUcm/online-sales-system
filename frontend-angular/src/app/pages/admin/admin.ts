@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, Product } from '../../services/api';
+import { ApiService, Product, AdminStats } from '../../services/api';
 import { AuthService } from '../../services/auth';
 import { Router } from '@angular/router';
 
@@ -13,7 +13,10 @@ import { Router } from '@angular/router';
   styleUrl: './admin.css',
 })
 export class AdminComponent implements OnInit {
+  tab: 'products' | 'orders' = 'products';
+  stats: AdminStats = { total_orders: 0, total_revenue: 0, total_products: 0, total_clients: 0 };
   products: Product[] = [];
+  allOrders: any[] = [];
   loading = false;
   error = '';
   success = '';
@@ -32,14 +35,31 @@ export class AdminComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
-    await this.load();
+    await Promise.all([this.loadProducts(), this.loadStats()]);
   }
 
-  async load() {
+  async loadProducts() {
     this.loading = true;
     try { this.products = await this.api.getProducts(); }
     catch { this.error = 'Error al cargar productos.'; }
     finally { this.loading = false; this.cdr.markForCheck(); }
+  }
+
+  async loadStats() {
+    try { this.stats = await this.api.getAdminStats(); }
+    catch {}
+    finally { this.cdr.markForCheck(); }
+  }
+
+  async loadOrders() {
+    try { this.allOrders = await this.api.getAllOrders(); }
+    catch { this.allOrders = []; }
+    finally { this.cdr.markForCheck(); }
+  }
+
+  async setTab(t: 'products' | 'orders') {
+    this.tab = t;
+    if (t === 'orders' && this.allOrders.length === 0) await this.loadOrders();
   }
 
   openCreate() {
@@ -68,14 +88,14 @@ export class AdminComponent implements OnInit {
     try {
       if (this.editingId) {
         await this.api.updateProduct(this.editingId, this.form.name, this.form.price, this.form.stock);
-        this.success = 'Producto actualizado correctamente.';
+        this.success = 'Producto actualizado.';
       } else {
         await this.api.createProduct(this.form.name, this.form.price, this.form.stock);
-        this.success = 'Producto publicado. Notificación WhatsApp enviada.';
+        this.success = 'Producto publicado. WhatsApp enviado.';
       }
       this.showForm = false;
       this.editingId = null;
-      await this.load();
+      await Promise.all([this.loadProducts(), this.loadStats()]);
     } catch {
       this.error = 'Error al guardar. Intenta nuevamente.';
     } finally {
@@ -92,13 +112,12 @@ export class AdminComponent implements OnInit {
       await this.api.deleteProduct(id);
       this.success = 'Producto eliminado.';
       this.deleteConfirmId = null;
-      await this.load();
+      await Promise.all([this.loadProducts(), this.loadStats()]);
     } catch {
       this.error = 'Error al eliminar.';
     }
+    this.cdr.markForCheck();
   }
-
-  logout() { this.auth.logout(); }
 
   getImg(name: string): string {
     const n = name.toLowerCase();
@@ -120,4 +139,6 @@ export class AdminComponent implements OnInit {
       return 'https://images.pexels.com/photos/1957477/pexels-photo-1957477.jpeg?auto=compress&cs=tinysrgb&w=60';
     return 'https://images.pexels.com/photos/325153/pexels-photo-325153.jpeg?auto=compress&cs=tinysrgb&w=60';
   }
+
+  logout() { this.auth.logout(); }
 }

@@ -7,6 +7,7 @@ import { RegisterComponent } from './pages/register/register';
 import { VerifyComponent } from './pages/verify/verify';
 import { ProductsComponent } from './pages/products/products';
 import { CheckoutComponent } from './pages/checkout/checkout';
+import { AccountComponent } from './pages/account/account';
 import { AdminLoginComponent } from './pages/admin-login/admin-login';
 import { AdminComponent } from './pages/admin/admin';
 
@@ -15,8 +16,9 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'verify', component: VerifyComponent },
-  { path: 'products', component: ProductsComponent, canActivate: [authGuard] },
+  { path: 'products', component: ProductsComponent },
   { path: 'checkout', component: CheckoutComponent, canActivate: [authGuard] },
+  { path: 'account', component: AccountComponent, canActivate: [authGuard] },
   { path: 'admin/login', component: AdminLoginComponent },
   { path: 'admin', component: AdminComponent, canActivate: [adminGuard] },
   { path: '**', redirectTo: '' },

@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
@@ -5,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.cart import CartItem
+from app.models.order import Order
 from app.models.product import Product
 from app.models.user import User
 from app.services.auth_service import get_current_user
@@ -55,9 +57,18 @@ def checkout(
 
     if result.get("status") == "approved":
         db.query(CartItem).filter(CartItem.user_id == current_user.id).delete()
-        db.commit()
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        order_id = str(uuid.uuid4())[:8].upper()
+        order_ref = str(uuid.uuid4())[:8].upper()
+        db.add(Order(
+            user_id=current_user.id,
+            order_ref=order_ref,
+            total=total,
+            status="approved",
+            items_json=json.dumps(items_detail, ensure_ascii=False),
+            created_at=now,
+        ))
+        db.commit()
+        order_id = order_ref
         try:
             send_purchase_email(
                 current_user.email,

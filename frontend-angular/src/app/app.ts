@@ -12,7 +12,7 @@ import { CommonModule } from '@angular/common';
 })
 export class App {
   private router = inject(Router);
-  private hiddenPaths = ['/', '/enter', '/admin/login'];
+  private hiddenPaths = ['/', '/admin/login'];
 
   get showShell(): boolean {
     const url = this.router.url.split('?')[0];

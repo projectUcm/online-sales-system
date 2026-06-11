@@ -1,0 +1,84 @@
+<div class="account-page">
+
+  <!-- Profile -->
+  <div class="section-header">
+    <h1>Mi Cuenta</h1>
+    <p>Gestiona tu perfil e historial de compras</p>
+  </div>
+
+  <div class="account-grid">
+
+    <!-- Profile card -->
+    <div class="profile-card">
+      <div class="profile-avatar">
+        {{ auth.getUser()?.name?.charAt(0)?.toUpperCase() }}
+      </div>
+      <div class="profile-info">
+        <h2>{{ auth.getUser()?.name }}</h2>
+        <p class="profile-email">{{ auth.getUser()?.email }}</p>
+        <span class="profile-role">Cliente</span>
+      </div>
+      <div class="profile-stats">
+        <div class="stat">
+          <span class="stat-value">{{ orders.length }}</span>
+          <span class="stat-label">Compras</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">${{ totalSpent() | number:'1.0-0' }}</span>
+          <span class="stat-label">Total gastado</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order history -->
+    <div class="orders-section">
+      <h2 class="orders-title">Historial de compras</h2>
+
+      @if (loading) {
+        <div class="loading-msg">Cargando órdenes...</div>
+      } @else if (orders.length === 0) {
+        <div class="empty-orders">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="var(--t3)" stroke-width="1.5" stroke-linejoin="round"/>
+            <line x1="3" y1="6" x2="21" y2="6" stroke="var(--t3)" stroke-width="1.5"/>
+            <path d="M16 10a4 4 0 01-8 0" stroke="var(--t3)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <p>Aún no has realizado compras</p>
+          <small>Explora el catálogo y encuentra tu próximo producto</small>
+        </div>
+      } @else {
+        <div class="orders-list">
+          @for (order of orders; track order.id) {
+            <div class="order-card" [class.expanded]="expandedId === order.id">
+              <div class="order-header" (click)="toggle(order.id)">
+                <div class="order-ref">
+                  <span class="ref-label">Orden</span>
+                  <span class="ref-value">#{{ order.order_ref }}</span>
+                </div>
+                <div class="order-date">{{ order.created_at }}</div>
+                <div class="order-total">${{ order.total | number:'1.0-0' }} CLP</div>
+                <span class="order-status">{{ order.status === 'approved' ? 'Aprobado' : order.status }}</span>
+                <svg class="chevron" [class.rotated]="expandedId === order.id"
+                  width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              @if (expandedId === order.id) {
+                <div class="order-items">
+                  @for (item of order.items; track item.name) {
+                    <div class="order-item">
+                      <span class="item-name">{{ item.name }}</span>
+                      <span class="item-qty">x{{ item.quantity }}</span>
+                      <span class="item-price">${{ item.price | number:'1.0-0' }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+  </div>
+</div>

@@ -40,6 +40,28 @@ export interface StorageInfo {
   storage_limit: number;
 }
 
+export interface OrderItem {
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Order {
+  id: number;
+  order_ref: string;
+  total: number;
+  status: string;
+  created_at: string;
+  items: OrderItem[];
+}
+
+export interface AdminStats {
+  total_orders: number;
+  total_revenue: number;
+  total_products: number;
+  total_clients: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private baseUrl = 'http://online-sales-alb-1964549465.us-east-1.elb.amazonaws.com';
@@ -139,6 +161,24 @@ export class ApiService {
     return firstValueFrom(
       this.http.delete<{ message: string }>(`${this.baseUrl}/products/${id}`)
         .pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  getMyOrders(): Promise<Order[]> {
+    return firstValueFrom(
+      this.http.get<Order[]>(`${this.baseUrl}/orders/my`).pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  getAdminStats(): Promise<AdminStats> {
+    return firstValueFrom(
+      this.http.get<AdminStats>(`${this.baseUrl}/orders/stats`).pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  getAllOrders(): Promise<any[]> {
+    return firstValueFrom(
+      this.http.get<any[]>(`${this.baseUrl}/orders/all`).pipe(timeout(HTTP_TIMEOUT)),
     );
   }
 }

@@ -7,11 +7,12 @@
     <span>NEXSTORE</span>
   </a>
 
-  @if (auth.isLoggedIn()) {
+  @if (auth.isLoggedIn() && !auth.isAdmin()) {
+    <!-- Cliente autenticado -->
     <div class="nav-links">
       <a routerLink="/products" routerLinkActive="active">Productos</a>
+      <a routerLink="/account" routerLinkActive="active">Mi Cuenta</a>
       <button class="nav-logout" (click)="auth.logout()">Salir →</button>
-
       <div class="nav-cart-group">
         <button class="nav-cart-btn" (click)="drawer.toggle()" title="Abrir carrito">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -25,8 +26,10 @@
         </button>
       </div>
     </div>
-  } @else {
+  } @else if (!auth.isLoggedIn()) {
+    <!-- Visitante -->
     <div class="nav-links">
+      <a routerLink="/products" routerLinkActive="active">Productos</a>
       <a routerLink="/login" routerLinkActive="active">Ingresar</a>
       <a routerLink="/register" class="nav-cta" routerLinkActive="active">Crear cuenta</a>
     </div>
