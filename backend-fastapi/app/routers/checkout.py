@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List
@@ -68,6 +68,7 @@ def _decrement_stock(items_raw, db: Session):
 @router.post("/")
 def checkout(
     data: CheckoutRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -107,13 +108,11 @@ def checkout(
                 created_at=now,
             ))
             db.commit()
-            try:
-                send_purchase_email(current_user.email, current_user.name, order_ref, now, items_detail, total)
-                send_payment_email(current_user.email, result.get("transaction_id", "N/A"), "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
-                if current_user.phone:
-                    send_purchase_whatsapp(current_user.phone, current_user.name, order_ref, now, items_detail, total)
-            except Exception as e:
-                print(f"[WARN] Notificación no enviada: {e}")
+            transaction_id = result.get("transaction_id", "N/A")
+            background_tasks.add_task(send_purchase_email, current_user.email, current_user.name, order_ref, now, items_detail, total)
+            background_tasks.add_task(send_payment_email, current_user.email, transaction_id, "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
+            if current_user.phone:
+                background_tasks.add_task(send_purchase_whatsapp, current_user.phone, current_user.name, order_ref, now, items_detail, total)
         except Exception as e:
             print(f"[ERROR] No se pudo guardar la orden: {e}")
             db.rollback()
@@ -122,7 +121,7 @@ def checkout(
 
 
 @router.post("/guest")
-def guest_checkout(data: GuestCheckoutRequest, db: Session = Depends(get_db)):
+def guest_checkout(data: GuestCheckoutRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     if not data.items:
         raise HTTPException(status_code=400, detail="El carrito está vacío")
 
@@ -153,11 +152,9 @@ def guest_checkout(data: GuestCheckoutRequest, db: Session = Depends(get_db)):
                 created_at=now,
             ))
             db.commit()
-            try:
-                send_purchase_email(data.email, "Invitado", order_ref, now, items_detail, total)
-                send_payment_email(data.email, result.get("transaction_id", "N/A"), "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
-            except Exception as e:
-                print(f"[WARN] Email invitado no enviado: {e}")
+            transaction_id = result.get("transaction_id", "N/A")
+            background_tasks.add_task(send_purchase_email, data.email, data.cardholder_name or "Invitado", order_ref, now, items_detail, total)
+            background_tasks.add_task(send_payment_email, data.email, transaction_id, "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
         except Exception as e:
             print(f"[ERROR] No se pudo guardar la orden de invitado: {e}")
             db.rollback()
