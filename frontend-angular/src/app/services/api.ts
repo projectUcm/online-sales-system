@@ -168,6 +168,8 @@ export class ApiService {
 
   guestCheckout(
     email: string,
+    firstName: string,
+    lastName: string,
     cardNumber: string,
     cardholderName: string,
     expiryMonth: number,
@@ -178,6 +180,8 @@ export class ApiService {
     return firstValueFrom(
       this.http.post<PaymentResult>(`${this.baseUrl}/checkout/guest`, {
         email,
+        first_name: firstName,
+        last_name: lastName,
         card_number: cardNumber,
         cardholder_name: cardholderName,
         expiry_month: expiryMonth,

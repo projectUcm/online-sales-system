@@ -54,7 +54,7 @@ def all_orders(db: Session = Depends(get_db), admin=Depends(require_admin)):
         {
             "id": o.id,
             "order_ref": o.order_ref,
-            "user_name": users.get(o.user_id, "Invitado"),
+            "user_name": users.get(o.user_id) or o.guest_name or "Invitado",
             "user_email": o.guest_email if o.user_id is None else None,
             "total": o.total,
             "status": o.status,

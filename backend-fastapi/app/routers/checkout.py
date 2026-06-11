@@ -33,6 +33,8 @@ class CheckoutRequest(BaseModel):
 
 class GuestCheckoutRequest(BaseModel):
     email: str
+    first_name: str = ""
+    last_name: str = ""
     card_number: str
     cardholder_name: str = ""
     expiry_month: int = 11
@@ -143,9 +145,11 @@ def guest_checkout(data: GuestCheckoutRequest, background_tasks: BackgroundTasks
             _decrement_stock(data.items, db)
             now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
             order_ref = str(uuid.uuid4())[:8].upper()
+            guest_name = f"{data.first_name} {data.last_name}".strip() or data.cardholder_name or "Invitado"
             db.add(Order(
                 user_id=None,
                 guest_email=data.email,
+                guest_name=guest_name,
                 order_ref=order_ref,
                 total=total,
                 status="approved",
@@ -154,7 +158,7 @@ def guest_checkout(data: GuestCheckoutRequest, background_tasks: BackgroundTasks
             ))
             db.commit()
             transaction_id = result.get("transaction_id", "N/A")
-            background_tasks.add_task(send_purchase_email, data.email, data.cardholder_name or "Invitado", order_ref, now, items_detail, total)
+            background_tasks.add_task(send_purchase_email, data.email, guest_name, order_ref, now, items_detail, total)
             background_tasks.add_task(send_payment_email, data.email, transaction_id, "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
         except Exception as e:
             print(f"[ERROR] No se pudo guardar la orden de invitado: {e}")

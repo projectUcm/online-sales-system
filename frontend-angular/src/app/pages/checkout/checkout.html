@@ -99,8 +99,26 @@
           <h2 class="section-title">Datos de la tarjeta</h2>
 
           @if (isGuest) {
+            <div class="card-fields-row">
+              <div class="field">
+                <label>Nombre <span class="required-badge">Invitado</span></label>
+                <input
+                  [(ngModel)]="guestFirstName"
+                  type="text"
+                  placeholder="Juan"
+                  autocomplete="given-name" />
+              </div>
+              <div class="field">
+                <label>Apellido</label>
+                <input
+                  [(ngModel)]="guestLastName"
+                  type="text"
+                  placeholder="Pérez"
+                  autocomplete="family-name" />
+              </div>
+            </div>
             <div class="field">
-              <label>Correo electrónico <span class="required-badge">Invitado</span></label>
+              <label>Correo electrónico</label>
               <input
                 [(ngModel)]="guestEmail"
                 type="email"
