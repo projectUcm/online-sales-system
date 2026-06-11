@@ -46,7 +46,7 @@ export class ProductsComponent implements OnInit {
   getProductImage(name: string): string {
     const n = name.toLowerCase();
     if (n.includes('notebook') || n.includes('laptop'))
-      return 'https://images.pexels.com/photos/18105/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=500';
+      return 'https://images.pexels.com/photos/1229861/pexels-photo-1229861.jpeg?auto=compress&cs=tinysrgb&w=500';
     if (n.includes('mouse'))
       return 'https://images.pexels.com/photos/2115257/pexels-photo-2115257.jpeg?auto=compress&cs=tinysrgb&w=500';
     if (n.includes('monitor') || n.includes('pantalla'))
@@ -60,7 +60,7 @@ export class ProductsComponent implements OnInit {
     if (n.includes('ssd') || n.includes('disco'))
       return 'https://images.pexels.com/photos/117729/pexels-photo-117729.jpeg?auto=compress&cs=tinysrgb&w=500';
     if (n.includes('ram') || n.includes('memoria') || n.includes('corsair'))
-      return 'https://images.pexels.com/photos/163125/pexels-photo-163125.jpeg?auto=compress&cs=tinysrgb&w=500';
+      return 'https://images.pexels.com/photos/2582937/pexels-photo-2582937.jpeg?auto=compress&cs=tinysrgb&w=500';
     if (n.includes('silla') || n.includes('chair'))
       return 'https://images.pexels.com/photos/1957477/pexels-photo-1957477.jpeg?auto=compress&cs=tinysrgb&w=500';
     if (n.includes('pad') || n.includes('mousepad'))
