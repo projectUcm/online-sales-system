@@ -23,6 +23,7 @@ class CheckoutRequest(BaseModel):
     expiry_month: int = 11
     expiry_year: int = 25
     security_code: str = ""
+    items: List[GuestItem] = []  # if provided, use these instead of server cart
 
 
 class GuestItem(BaseModel):
@@ -61,11 +62,15 @@ def checkout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    cart_items = db.query(CartItem).filter(CartItem.user_id == current_user.id).all()
-    if not cart_items:
-        raise HTTPException(status_code=400, detail="El carrito está vacío")
-
-    total, items_detail = _build_items(cart_items, db)
+    if data.items:
+        total, items_detail = _build_items(data.items, db)
+        if total == 0:
+            raise HTTPException(status_code=400, detail="No se encontraron productos válidos")
+    else:
+        cart_items = db.query(CartItem).filter(CartItem.user_id == current_user.id).all()
+        if not cart_items:
+            raise HTTPException(status_code=400, detail="El carrito está vacío")
+        total, items_detail = _build_items(cart_items, db)
 
     result = process_payment({
         "card_number": data.card_number,

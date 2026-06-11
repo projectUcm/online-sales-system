@@ -102,6 +102,7 @@ export class ApiService {
     expiryMonth: number,
     expiryYear: number,
     securityCode: string,
+    items: { product_id: number; quantity: number }[] = [],
   ): Promise<PaymentResult> {
     return firstValueFrom(
       this.http.post<PaymentResult>(`${this.baseUrl}/checkout/`, {
@@ -110,6 +111,7 @@ export class ApiService {
         expiry_month: expiryMonth,
         expiry_year: expiryYear,
         security_code: securityCode,
+        items,
       }).pipe(timeout(30000)),
     );
   }

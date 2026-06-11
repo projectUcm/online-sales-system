@@ -79,6 +79,8 @@ export class CheckoutComponent implements OnInit {
   }
 
   async pay() {
+    const items = this.cart.items().map(i => ({ product_id: i.product_id, quantity: i.quantity }));
+    if (items.length === 0) { this.error = 'Tu carrito está vacío. Agrega productos antes de continuar.'; return; }
     if (this.isGuest && !this.guestEmail.trim()) { this.error = 'Ingresa tu correo para recibir la confirmación'; return; }
     if (!this.cardNumber.trim()) { this.error = 'Ingresa el número de tarjeta'; return; }
     if (!this.cardholderName.trim()) { this.error = 'Ingresa el nombre del titular'; return; }
@@ -89,26 +91,19 @@ export class CheckoutComponent implements OnInit {
     this.error = '';
     this.cdr.markForCheck();
 
+    const cardNum = this.cardNumber.replace(/\s/g, '');
+    const month = parseInt(this.expiryMonth);
+    const year = parseInt(this.expiryYear);
+
     try {
       if (this.isGuest) {
-        const items = this.cart.items().map(i => ({ product_id: i.product_id, quantity: i.quantity }));
         this.result = await this.api.guestCheckout(
-          this.guestEmail,
-          this.cardNumber.replace(/\s/g, ''),
-          this.cardholderName,
-          parseInt(this.expiryMonth),
-          parseInt(this.expiryYear),
-          this.securityCode,
-          items,
+          this.guestEmail, cardNum, this.cardholderName, month, year, this.securityCode, items,
         );
         if (this.result?.status === 'approved') this.cart.clearGuest();
       } else {
         this.result = await this.api.checkout(
-          this.cardNumber.replace(/\s/g, ''),
-          this.cardholderName,
-          parseInt(this.expiryMonth),
-          parseInt(this.expiryYear),
-          this.securityCode,
+          cardNum, this.cardholderName, month, year, this.securityCode, items,
         );
       }
     } catch {
