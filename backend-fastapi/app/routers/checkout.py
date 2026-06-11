@@ -82,25 +82,29 @@ def checkout(
     })
 
     if result.get("status") == "approved":
-        db.query(CartItem).filter(CartItem.user_id == current_user.id).delete()
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        order_ref = str(uuid.uuid4())[:8].upper()
-        db.add(Order(
-            user_id=current_user.id,
-            order_ref=order_ref,
-            total=total,
-            status="approved",
-            items_json=json.dumps(items_detail, ensure_ascii=False),
-            created_at=now,
-        ))
-        db.commit()
         try:
-            send_purchase_email(current_user.email, current_user.name, order_ref, now, items_detail, total)
-            send_payment_email(current_user.email, result.get("transaction_id", "N/A"), "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
-            if current_user.phone:
-                send_purchase_whatsapp(current_user.phone, current_user.name, order_ref, now, items_detail, total)
+            db.query(CartItem).filter(CartItem.user_id == current_user.id).delete()
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            order_ref = str(uuid.uuid4())[:8].upper()
+            db.add(Order(
+                user_id=current_user.id,
+                order_ref=order_ref,
+                total=total,
+                status="approved",
+                items_json=json.dumps(items_detail, ensure_ascii=False),
+                created_at=now,
+            ))
+            db.commit()
+            try:
+                send_purchase_email(current_user.email, current_user.name, order_ref, now, items_detail, total)
+                send_payment_email(current_user.email, result.get("transaction_id", "N/A"), "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
+                if current_user.phone:
+                    send_purchase_whatsapp(current_user.phone, current_user.name, order_ref, now, items_detail, total)
+            except Exception as e:
+                print(f"[WARN] Notificación no enviada: {e}")
         except Exception as e:
-            print(f"[WARN] Notificación no enviada: {e}")
+            print(f"[ERROR] No se pudo guardar la orden: {e}")
+            db.rollback()
 
     return result
 
@@ -124,21 +128,25 @@ def guest_checkout(data: GuestCheckoutRequest, db: Session = Depends(get_db)):
     })
 
     if result.get("status") == "approved":
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        order_ref = str(uuid.uuid4())[:8].upper()
-        db.add(Order(
-            user_id=None,
-            order_ref=order_ref,
-            total=total,
-            status="approved",
-            items_json=json.dumps(items_detail, ensure_ascii=False),
-            created_at=now,
-        ))
-        db.commit()
         try:
-            send_purchase_email(data.email, "Invitado", order_ref, now, items_detail, total)
-            send_payment_email(data.email, result.get("transaction_id", "N/A"), "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            order_ref = str(uuid.uuid4())[:8].upper()
+            db.add(Order(
+                user_id=None,
+                order_ref=order_ref,
+                total=total,
+                status="approved",
+                items_json=json.dumps(items_detail, ensure_ascii=False),
+                created_at=now,
+            ))
+            db.commit()
+            try:
+                send_purchase_email(data.email, "Invitado", order_ref, now, items_detail, total)
+                send_payment_email(data.email, result.get("transaction_id", "N/A"), "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
+            except Exception as e:
+                print(f"[WARN] Email invitado no enviado: {e}")
         except Exception as e:
-            print(f"[WARN] Email invitado no enviado: {e}")
+            print(f"[ERROR] No se pudo guardar la orden de invitado: {e}")
+            db.rollback()
 
     return result

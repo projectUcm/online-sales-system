@@ -32,6 +32,15 @@ def run_migrations():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_used INTEGER DEFAULT 0",
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'client'",
                 "ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)",
+                """CREATE TABLE IF NOT EXISTS orders (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
+                    order_ref VARCHAR NOT NULL,
+                    total FLOAT NOT NULL,
+                    status VARCHAR DEFAULT 'approved',
+                    items_json VARCHAR NOT NULL,
+                    created_at VARCHAR NOT NULL
+                )""",
             ]
         else:
             migrations = []
