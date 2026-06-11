@@ -23,3 +23,4 @@ class Token(BaseModel):
     token_type: str = "bearer"
     user_id: int = 0
     name: str = ""
+    role: str = "client"

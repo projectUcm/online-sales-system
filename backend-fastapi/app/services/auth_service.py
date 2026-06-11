@@ -49,3 +49,9 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
     return user
+
+
+def require_admin(user=Depends(get_current_user)):
+    if (user.role or "client") != "admin":
+        raise HTTPException(status_code=403, detail="Acceso solo para administradores")
+    return user

@@ -31,7 +31,7 @@ export class LoginComponent {
     this.cdr.markForCheck();
     try {
       await this.auth.login(this.email, this.password);
-      this.router.navigate(['/products']);
+      this.router.navigate([this.auth.isAdmin() ? '/admin' : '/products']);
     } catch (err: any) {
       if (err?.status === 403) {
         this.error = 'Tu cuenta no está verificada. Revisa tu correo.';

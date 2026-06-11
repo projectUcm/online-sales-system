@@ -58,3 +58,10 @@ def send_purchase_whatsapp(phone: str, name: str, order_id: str, date: str, item
         "to": phone, "name": name, "order_id": order_id,
         "date": date, "items": items, "total": total,
     })
+
+
+def send_product_whatsapp(phone: str, admin_name: str, product_name: str, price: float, stock: int):
+    _post("/notify/sms/product-created", {
+        "to": phone, "admin_name": admin_name,
+        "product_name": product_name, "price": price, "stock": stock,
+    })

@@ -1,5 +1,7 @@
-<app-navbar></app-navbar>
-<app-cart-drawer></app-cart-drawer>
-<main class="main-content">
+@if (showShell) {
+  <app-navbar></app-navbar>
+  <app-cart-drawer></app-cart-drawer>
+}
+<main [class.main-content]="showShell">
   <router-outlet></router-outlet>
 </main>

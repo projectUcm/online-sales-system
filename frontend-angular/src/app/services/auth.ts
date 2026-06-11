@@ -19,20 +19,33 @@ export class AuthService {
     return localStorage.getItem(this.tokenKey);
   }
 
-  getUser(): { id: number; name: string; email: string } | null {
+  getUser(): { id: number; name: string; email: string; role: string } | null {
     const raw = localStorage.getItem(this.userKey);
     return raw ? JSON.parse(raw) : null;
   }
 
+  getRole(): string {
+    return this.getUser()?.role ?? 'client';
+  }
+
+  isAdmin(): boolean {
+    return this.getRole() === 'admin';
+  }
+
   async login(email: string, password: string): Promise<void> {
     const result = await firstValueFrom(
-      this.http.post<{ access_token: string; user_id: number; name: string }>(
+      this.http.post<{ access_token: string; user_id: number; name: string; role: string }>(
         `${this.baseUrl}/users/login`,
         { email, password }
       ).pipe(timeout(15000))
     );
     localStorage.setItem(this.tokenKey, result.access_token);
-    localStorage.setItem(this.userKey, JSON.stringify({ id: result.user_id, name: result.name, email }));
+    localStorage.setItem(this.userKey, JSON.stringify({
+      id: result.user_id,
+      name: result.name,
+      email,
+      role: result.role ?? 'client',
+    }));
   }
 
   async register(name: string, email: string, password: string, phone: string = ''): Promise<void> {
@@ -52,6 +65,6 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.userKey);
-    this.router.navigate(['/login']);
+    this.router.navigate(['/']);
   }
 }

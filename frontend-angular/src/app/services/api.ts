@@ -120,4 +120,25 @@ export class ApiService {
         .pipe(timeout(HTTP_TIMEOUT)),
     );
   }
+
+  createProduct(name: string, price: number, stock: number): Promise<Product> {
+    return firstValueFrom(
+      this.http.post<Product>(`${this.baseUrl}/products/`, { name, price, stock })
+        .pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  updateProduct(id: number, name: string, price: number, stock: number): Promise<Product> {
+    return firstValueFrom(
+      this.http.put<Product>(`${this.baseUrl}/products/${id}`, { name, price, stock })
+        .pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  deleteProduct(id: number): Promise<{ message: string }> {
+    return firstValueFrom(
+      this.http.delete<{ message: string }>(`${this.baseUrl}/products/${id}`)
+        .pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
 }

@@ -30,6 +30,7 @@ def run_migrations():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE",
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code VARCHAR",
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_used INTEGER DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'client'",
                 "ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)",
             ]
         else:
@@ -46,6 +47,8 @@ def run_migrations():
                 migrations.append("ALTER TABLE users ADD COLUMN verification_code VARCHAR")
             if "storage_used" not in existing:
                 migrations.append("ALTER TABLE users ADD COLUMN storage_used INTEGER DEFAULT 0")
+            if "role" not in existing:
+                migrations.append("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'client'")
             raw2 = conn.execute(text("PRAGMA table_info(cart_items)")).fetchall()
             existing2 = {r[1] for r in raw2}
             if "user_id" not in existing2:
