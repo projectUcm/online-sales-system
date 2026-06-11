@@ -51,6 +51,16 @@ export class CartService {
     }
   }
 
+  async mergeGuestCart() {
+    const guest = this._loadGuest();
+    if (!guest.length) return;
+    for (const item of guest) {
+      try { await this.api.addToCart(item.product_id, item.quantity); } catch {}
+    }
+    this.clearGuest();
+    await this.load();
+  }
+
   clearGuest() {
     localStorage.removeItem(GUEST_KEY);
     this.items.set([]);

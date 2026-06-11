@@ -140,6 +140,32 @@ jobs:
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
 
+      - name: Ensure ALB has /orders/* rule pointing to backend
+        run: |
+          ALB_ARN=$(aws elbv2 describe-load-balancers --query "LoadBalancers[?contains(LoadBalancerName,'online-sales')].LoadBalancerArn" --output text)
+          LISTENER_ARN=$(aws elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" --query "Listeners[?Port==\`80\`].ListenerArn" --output text)
+          BACKEND_TG_ARN=$(aws elbv2 describe-target-groups --query "TargetGroups[?contains(TargetGroupName,'backend')].TargetGroupArn" --output text)
+
+          # Check if /orders/* rule exists
+          EXISTING=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" \
+            --query "Rules[?Conditions[?Field=='path-pattern' && Values[?contains(@,'/orders/*')]]].RuleArn" \
+            --output text)
+
+          if [ -z "$EXISTING" ]; then
+            # Get the next available priority
+            MAX_PRIO=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" \
+              --query "max(Rules[?Priority!='default'].Priority)" --output text 2>/dev/null || echo "10")
+            NEXT_PRIO=$((MAX_PRIO + 1))
+            aws elbv2 create-rule \
+              --listener-arn "$LISTENER_ARN" \
+              --conditions Field=path-pattern,Values='/orders/*' \
+              --priority "$NEXT_PRIO" \
+              --actions Type=forward,TargetGroupArn="$BACKEND_TG_ARN"
+            echo "Created ALB rule for /orders/* -> backend (priority $NEXT_PRIO)"
+          else
+            echo "ALB rule for /orders/* already exists: $EXISTING"
+          fi
+
   deploy-payment:
     name: Deploy Payment
     runs-on: ubuntu-latest

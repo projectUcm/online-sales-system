@@ -28,10 +28,10 @@
   }
 
   <div class="products-grid">
-    @for (product of products; track product.id) {
+    @for (product of products; track product.id; let first = $first) {
       <div class="product-card" [class.adding]="addedId === product.id">
         <div class="product-img-wrap">
-          <img [src]="getProductImage(product.name)" [alt]="product.name" class="product-img" loading="lazy" />
+          <img [src]="getProductImage(product.name)" [alt]="product.name" class="product-img" [loading]="first ? 'eager' : 'lazy'" />
           <div class="product-overlay"></div>
           <span class="product-category">{{ getCategory(product.name) }}</span>
         </div>

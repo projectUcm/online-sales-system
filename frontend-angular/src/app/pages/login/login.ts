@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { CartService } from '../../services/cart.service';
 
 @Component({
   selector: 'app-login',
@@ -18,7 +19,7 @@ export class LoginComponent {
   loading = false;
   needsVerify = false;
 
-  constructor(private auth: AuthService, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(private auth: AuthService, private cart: CartService, private router: Router, private cdr: ChangeDetectorRef) {}
 
   async submit() {
     if (!this.email || !this.password) {
@@ -31,6 +32,7 @@ export class LoginComponent {
     this.cdr.markForCheck();
     try {
       await this.auth.login(this.email, this.password);
+      if (!this.auth.isAdmin()) await this.cart.mergeGuestCart();
       this.router.navigate([this.auth.isAdmin() ? '/admin' : '/products']);
     } catch (err: any) {
       if (err?.status === 403) {
