@@ -164,6 +164,28 @@ export class ApiService {
     );
   }
 
+  guestCheckout(
+    email: string,
+    cardNumber: string,
+    cardholderName: string,
+    expiryMonth: number,
+    expiryYear: number,
+    securityCode: string,
+    items: { product_id: number; quantity: number }[],
+  ): Promise<PaymentResult> {
+    return firstValueFrom(
+      this.http.post<PaymentResult>(`${this.baseUrl}/checkout/guest`, {
+        email,
+        card_number: cardNumber,
+        cardholder_name: cardholderName,
+        expiry_month: expiryMonth,
+        expiry_year: expiryYear,
+        security_code: securityCode,
+        items,
+      }).pipe(timeout(30000)),
+    );
+  }
+
   getMyOrders(): Promise<Order[]> {
     return firstValueFrom(
       this.http.get<Order[]>(`${this.baseUrl}/orders/my`).pipe(timeout(HTTP_TIMEOUT)),

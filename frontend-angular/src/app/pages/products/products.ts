@@ -39,12 +39,8 @@ export class ProductsComponent implements OnInit {
   }
 
   async add(product: Product) {
-    if (!this.auth.isLoggedIn()) {
-      this.router.navigate(['/login']);
-      return;
-    }
     try {
-      await this.cart.add(product.id);
+      await this.cart.add(product.id, { name: product.name, price: product.price });
       this.addedId = product.id;
       this.cdr.markForCheck();
       setTimeout(() => { this.addedId = null; this.cdr.markForCheck(); }, 1800);

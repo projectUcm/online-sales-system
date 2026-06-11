@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { adminGuard } from './guards/admin.guard';
-import { LandingComponent } from './pages/landing/landing';
 import { LoginComponent } from './pages/login/login';
 import { RegisterComponent } from './pages/register/register';
 import { VerifyComponent } from './pages/verify/verify';
@@ -12,14 +11,14 @@ import { AdminLoginComponent } from './pages/admin-login/admin-login';
 import { AdminComponent } from './pages/admin/admin';
 
 export const routes: Routes = [
-  { path: '', component: LandingComponent },
+  { path: '', redirectTo: 'products', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'verify', component: VerifyComponent },
   { path: 'products', component: ProductsComponent },
-  { path: 'checkout', component: CheckoutComponent, canActivate: [authGuard] },
+  { path: 'checkout', component: CheckoutComponent },
   { path: 'account', component: AccountComponent, canActivate: [authGuard] },
   { path: 'admin/login', component: AdminLoginComponent },
   { path: 'admin', component: AdminComponent, canActivate: [adminGuard] },
-  { path: '**', redirectTo: '' },
+  { path: '**', redirectTo: 'products' },
 ];

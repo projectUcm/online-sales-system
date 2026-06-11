@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ApiService, PaymentResult } from '../../services/api';
 import { CartService } from '../../services/cart.service';
+import { AuthService } from '../../services/auth';
 
 @Component({
   selector: 'app-checkout',
@@ -17,6 +18,7 @@ export class CheckoutComponent implements OnInit {
   expiryMonth = '';
   expiryYear = '';
   securityCode = '';
+  guestEmail = '';
   result: PaymentResult | null = null;
   loading = false;
   error = '';
@@ -25,6 +27,7 @@ export class CheckoutComponent implements OnInit {
   constructor(
     private api: ApiService,
     public cart: CartService,
+    public auth: AuthService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -33,14 +36,11 @@ export class CheckoutComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  get formattedCard(): string {
-    return this.cardNumber || '•••• •••• •••• ••••';
-  }
+  get isGuest(): boolean { return !this.auth.isLoggedIn(); }
 
+  get formattedCard(): string { return this.cardNumber || '•••• •••• •••• ••••'; }
   get formattedExpiry(): string {
-    const m = this.expiryMonth || 'MM';
-    const y = this.expiryYear || 'AA';
-    return `${m}/${y}`;
+    return `${this.expiryMonth || 'MM'}/${this.expiryYear || 'AA'}`;
   }
 
   formatCardNumber(event: Event) {
@@ -69,8 +69,6 @@ export class CheckoutComponent implements OnInit {
       return 'https://images.pexels.com/photos/1772123/pexels-photo-1772123.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('auricular') || n.includes('sony'))
       return 'https://images.pexels.com/photos/577769/pexels-photo-577769.jpeg?auto=compress&cs=tinysrgb&w=80';
-    if (n.includes('webcam'))
-      return 'https://images.pexels.com/photos/4160016/pexels-photo-4160016.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('ssd') || n.includes('disco'))
       return 'https://images.pexels.com/photos/117729/pexels-photo-117729.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('ram') || n.includes('corsair'))
@@ -81,6 +79,7 @@ export class CheckoutComponent implements OnInit {
   }
 
   async pay() {
+    if (this.isGuest && !this.guestEmail.trim()) { this.error = 'Ingresa tu correo para recibir la confirmación'; return; }
     if (!this.cardNumber.trim()) { this.error = 'Ingresa el número de tarjeta'; return; }
     if (!this.cardholderName.trim()) { this.error = 'Ingresa el nombre del titular'; return; }
     if (!this.expiryMonth || !this.expiryYear) { this.error = 'Ingresa la fecha de vencimiento'; return; }
@@ -91,13 +90,27 @@ export class CheckoutComponent implements OnInit {
     this.cdr.markForCheck();
 
     try {
-      this.result = await this.api.checkout(
-        this.cardNumber.replace(/\s/g, ''),
-        this.cardholderName,
-        parseInt(this.expiryMonth),
-        parseInt(this.expiryYear),
-        this.securityCode,
-      );
+      if (this.isGuest) {
+        const items = this.cart.items().map(i => ({ product_id: i.product_id, quantity: i.quantity }));
+        this.result = await this.api.guestCheckout(
+          this.guestEmail,
+          this.cardNumber.replace(/\s/g, ''),
+          this.cardholderName,
+          parseInt(this.expiryMonth),
+          parseInt(this.expiryYear),
+          this.securityCode,
+          items,
+        );
+        if (this.result?.status === 'approved') this.cart.clearGuest();
+      } else {
+        this.result = await this.api.checkout(
+          this.cardNumber.replace(/\s/g, ''),
+          this.cardholderName,
+          parseInt(this.expiryMonth),
+          parseInt(this.expiryYear),
+          this.securityCode,
+        );
+      }
     } catch {
       this.error = 'Error al procesar el pago. Intenta nuevamente.';
     } finally {
