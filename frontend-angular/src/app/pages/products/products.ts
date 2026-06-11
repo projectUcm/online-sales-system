@@ -1,10 +1,8 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
 import { ApiService, Product } from '../../services/api';
 import { CartService } from '../../services/cart.service';
 import { CartDrawerService } from '../../services/cart-drawer.service';
-import { AuthService } from '../../services/auth';
 
 @Component({
   selector: 'app-products',
@@ -22,8 +20,6 @@ export class ProductsComponent implements OnInit {
     private api: ApiService,
     public cart: CartService,
     public drawer: CartDrawerService,
-    public auth: AuthService,
-    private router: Router,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -33,7 +29,7 @@ export class ProductsComponent implements OnInit {
     } catch {
       this.loadError = true;
     } finally {
-      if (this.auth.isLoggedIn()) await this.cart.load();
+      await this.cart.load();
       this.cdr.markForCheck();
     }
   }
