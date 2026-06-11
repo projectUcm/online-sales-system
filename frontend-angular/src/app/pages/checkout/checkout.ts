@@ -60,24 +60,24 @@ export class CheckoutComponent implements OnInit {
   getProductImage(name: string): string {
     const n = name.toLowerCase();
     if (n.includes('notebook') || n.includes('laptop'))
-      return 'https://picsum.photos/seed/laptop/80/80';
+      return 'https://images.pexels.com/photos/18105/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('mouse'))
-      return 'https://picsum.photos/seed/mouse/80/80';
+      return 'https://images.pexels.com/photos/2115257/pexels-photo-2115257.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('monitor'))
-      return 'https://picsum.photos/seed/monitor/80/80';
+      return 'https://images.pexels.com/photos/1714208/pexels-photo-1714208.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('teclado'))
-      return 'https://picsum.photos/seed/keyboard/80/80';
+      return 'https://images.pexels.com/photos/1772123/pexels-photo-1772123.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('auricular') || n.includes('sony'))
-      return 'https://picsum.photos/seed/headphones/80/80';
+      return 'https://images.pexels.com/photos/577769/pexels-photo-577769.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('webcam'))
-      return 'https://picsum.photos/seed/webcam/80/80';
+      return 'https://images.pexels.com/photos/4160016/pexels-photo-4160016.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('ssd') || n.includes('disco'))
-      return 'https://picsum.photos/seed/storage/80/80';
+      return 'https://images.pexels.com/photos/117729/pexels-photo-117729.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('ram') || n.includes('corsair'))
-      return 'https://picsum.photos/seed/memory/80/80';
+      return 'https://images.pexels.com/photos/163125/pexels-photo-163125.jpeg?auto=compress&cs=tinysrgb&w=80';
     if (n.includes('silla'))
-      return 'https://picsum.photos/seed/chair/80/80';
-    return 'https://picsum.photos/seed/tech/80/80';
+      return 'https://images.pexels.com/photos/1957477/pexels-photo-1957477.jpeg?auto=compress&cs=tinysrgb&w=80';
+    return 'https://images.pexels.com/photos/325153/pexels-photo-325153.jpeg?auto=compress&cs=tinysrgb&w=80';
   }
 
   async pay() {

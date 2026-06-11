@@ -50,6 +50,15 @@ class FileUploadSmsRequest(BaseModel):
     available_bytes: int
 
 
+class PurchaseWhatsappRequest(BaseModel):
+    to: str
+    name: str
+    order_id: str
+    date: str
+    items: List[dict]
+    total: float
+
+
 @router.post("/email")
 def notify_email(req: EmailRequest):
     return send_email(req.to, req.subject, req.body_html)
@@ -121,5 +130,22 @@ def send_file_sms(req: FileUploadSmsRequest):
         f"Fecha: {req.upload_date}\n"
         f"Espacio usado: {used_mb:.1f} MB\n"
         f"Espacio disponible: {avail_mb:.1f} MB"
+    )
+    return send_sms(req.to, message)
+
+
+@router.post("/sms/purchase")
+def send_purchase_whatsapp(req: PurchaseWhatsappRequest):
+    lines = "\n".join(
+        f"  - {i['name']} x{i['quantity']} = ${i['price']:,.0f}"
+        for i in req.items
+    )
+    message = (
+        f"NEXSTORE - Compra confirmada!\n"
+        f"Hola {req.name}, tu pedido #{req.order_id} fue aprobado.\n"
+        f"Fecha: {req.date}\n"
+        f"Productos:\n{lines}\n"
+        f"Total: ${req.total:,.0f} CLP\n"
+        f"Gracias por tu compra."
     )
     return send_sms(req.to, message)

@@ -9,7 +9,7 @@ from app.models.product import Product
 from app.models.user import User
 from app.services.auth_service import get_current_user
 from app.services.payment_service import process_payment
-from app.services.notification_client import send_purchase_email, send_payment_email
+from app.services.notification_client import send_purchase_email, send_payment_email, send_purchase_whatsapp
 
 router = APIRouter(prefix="/checkout", tags=["Checkout"])
 
@@ -75,7 +75,16 @@ def checkout(
                 total,
                 f"Compra #{order_id} en NEXSTORE",
             )
+            if current_user.phone:
+                send_purchase_whatsapp(
+                    current_user.phone,
+                    current_user.name,
+                    order_id,
+                    now,
+                    items_detail,
+                    total,
+                )
         except Exception as e:
-            print(f"[WARN] Email de compra no enviado: {e}")
+            print(f"[WARN] Notificación de compra no enviada: {e}")
 
     return result

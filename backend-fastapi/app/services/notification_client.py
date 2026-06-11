@@ -51,3 +51,10 @@ def send_file_upload_sms(phone: str, filename: str, upload_date: str, used_bytes
     if not ok:
         from app.services.sms_service import send_file_upload_sms as _direct
         _direct(phone, filename, upload_date, used_bytes, available_bytes)
+
+
+def send_purchase_whatsapp(phone: str, name: str, order_id: str, date: str, items: list, total: float):
+    _post("/notify/sms/purchase", {
+        "to": phone, "name": name, "order_id": order_id,
+        "date": date, "items": items, "total": total,
+    })
