@@ -15,7 +15,7 @@ export class LandingComponent {
     if (this.auth.isLoggedIn()) {
       this.router.navigate([this.auth.isAdmin() ? '/admin' : '/products']);
     } else {
-      this.router.navigate(['/enter']);
+      this.router.navigate(['/login']);
     }
   }
 }

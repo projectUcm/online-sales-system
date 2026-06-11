@@ -38,5 +38,5 @@ export class AdminLoginComponent {
     }
   }
 
-  goBack() { this.router.navigate(['/enter']); }
+  goBack() { this.router.navigate(['/']); }
 }
