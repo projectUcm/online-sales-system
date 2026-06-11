@@ -105,6 +105,10 @@ export class CheckoutComponent implements OnInit {
         this.result = await this.api.checkout(
           cardNum, this.cardholderName, month, year, this.securityCode, items,
         );
+        if (this.result?.status === 'approved') {
+          this.cart.clearGuest();
+          this.cart.items.set([]);
+        }
       }
     } catch {
       this.error = 'Error al procesar el pago. Intenta nuevamente.';

@@ -17,18 +17,18 @@ from app.services.notification_client import send_purchase_email, send_payment_e
 router = APIRouter(prefix="/checkout", tags=["Checkout"])
 
 
+class GuestItem(BaseModel):
+    product_id: int
+    quantity: int = 1
+
+
 class CheckoutRequest(BaseModel):
     card_number: str
     cardholder_name: str = ""
     expiry_month: int = 11
     expiry_year: int = 25
     security_code: str = ""
-    items: List[GuestItem] = []  # if provided, use these instead of server cart
-
-
-class GuestItem(BaseModel):
-    product_id: int
-    quantity: int = 1
+    items: List[GuestItem] = []
 
 
 class GuestCheckoutRequest(BaseModel):
@@ -42,6 +42,7 @@ class GuestCheckoutRequest(BaseModel):
 
 
 def _build_items(items_raw, db: Session):
+    """Build order details and calculate total. Prices come from DB, not client."""
     total = 0.0
     items_detail = []
     for item in items_raw:
@@ -56,6 +57,14 @@ def _build_items(items_raw, db: Session):
     return total, items_detail
 
 
+def _decrement_stock(items_raw, db: Session):
+    """Reduce product stock after a confirmed purchase."""
+    for item in items_raw:
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if product:
+            product.stock = max(0, product.stock - item.quantity)
+
+
 @router.post("/")
 def checkout(
     data: CheckoutRequest,
@@ -66,11 +75,13 @@ def checkout(
         total, items_detail = _build_items(data.items, db)
         if total == 0:
             raise HTTPException(status_code=400, detail="No se encontraron productos válidos")
+        source_items = data.items
     else:
         cart_items = db.query(CartItem).filter(CartItem.user_id == current_user.id).all()
         if not cart_items:
             raise HTTPException(status_code=400, detail="El carrito está vacío")
         total, items_detail = _build_items(cart_items, db)
+        source_items = cart_items
 
     result = process_payment({
         "card_number": data.card_number,
@@ -83,6 +94,7 @@ def checkout(
 
     if result.get("status") == "approved":
         try:
+            _decrement_stock(source_items, db)
             db.query(CartItem).filter(CartItem.user_id == current_user.id).delete()
             now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
             order_ref = str(uuid.uuid4())[:8].upper()
@@ -129,6 +141,7 @@ def guest_checkout(data: GuestCheckoutRequest, db: Session = Depends(get_db)):
 
     if result.get("status") == "approved":
         try:
+            _decrement_stock(data.items, db)
             now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
             order_ref = str(uuid.uuid4())[:8].upper()
             db.add(Order(

@@ -7,5 +7,5 @@ export const adminGuard = () => {
   const router = inject(Router);
   if (auth.isLoggedIn() && auth.isAdmin()) return true;
   if (auth.isLoggedIn()) return router.createUrlTree(['/products']);
-  return router.createUrlTree(['/enter']);
+  return router.createUrlTree(['/login']);
 };
