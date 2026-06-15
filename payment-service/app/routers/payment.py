@@ -1,4 +1,4 @@
-estafrom fastapi import APIRouter
+from fastapi import APIRouter
 from pydantic import BaseModel
 from app.services.mercadopago_service import process_payment
 
