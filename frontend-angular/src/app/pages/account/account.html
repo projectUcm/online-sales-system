@@ -28,6 +28,31 @@
           <span class="stat-label">Total gastado</span>
         </div>
       </div>
+
+      <!-- Phone -->
+      <div class="phone-section">
+        <span class="phone-label">Teléfono WhatsApp</span>
+        @if (!phoneEdit) {
+          <div class="phone-row">
+            <span class="phone-value">{{ phone || 'No configurado' }}</span>
+            <button class="btn-edit-phone" (click)="startEditPhone()">
+              {{ phone ? 'Editar' : 'Agregar' }}
+            </button>
+          </div>
+        } @else {
+          <div class="phone-edit-row">
+            <input [(ngModel)]="phoneInput" type="tel" placeholder="+56912345678" class="phone-input" />
+            <button class="btn-save-phone" (click)="savePhone()" [disabled]="phoneSaving">
+              {{ phoneSaving ? 'Guardando...' : 'Guardar' }}
+            </button>
+            <button class="btn-cancel-phone" (click)="cancelEditPhone()">Cancelar</button>
+          </div>
+        }
+        @if (phoneMsg) {
+          <p class="phone-msg">{{ phoneMsg }}</p>
+        }
+        <small class="phone-hint">Recibe confirmaciones de compra por WhatsApp</small>
+      </div>
     </div>
 
     <!-- Order history -->

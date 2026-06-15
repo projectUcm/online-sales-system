@@ -67,6 +67,13 @@ class ProductCreatedRequest(BaseModel):
     stock: int
 
 
+class ProductDeletedRequest(BaseModel):
+    to: str
+    admin_name: str
+    product_name: str
+    price: float
+
+
 @router.post("/email")
 def notify_email(req: EmailRequest):
     return send_email(req.to, req.subject, req.body_html)
@@ -150,6 +157,17 @@ def send_product_created(req: ProductCreatedRequest):
         f"Precio: ${req.price:,.0f} CLP\n"
         f"Stock: {req.stock} unidades\n"
         f"Publicado por: {req.admin_name}"
+    )
+    return send_sms(req.to, message)
+
+
+@router.post("/sms/product-deleted")
+def send_product_deleted(req: ProductDeletedRequest):
+    message = (
+        f"NEXSTORE Admin - Producto eliminado\n"
+        f"Nombre: {req.product_name}\n"
+        f"Precio: ${req.price:,.0f} CLP\n"
+        f"Eliminado por: {req.admin_name}"
     )
     return send_sms(req.to, message)
 

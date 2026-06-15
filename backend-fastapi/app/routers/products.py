@@ -4,7 +4,7 @@ from app.database import get_db
 from app.models.product import Product
 from app.schemas.product_schema import Product as ProductSchema, ProductCreate
 from app.services.auth_service import require_admin
-from app.services.notification_client import send_product_whatsapp
+from app.services.notification_client import send_product_whatsapp, send_product_deleted_whatsapp
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -51,6 +51,12 @@ def delete_product(product_id: int, db: Session = Depends(get_db), admin=Depends
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    product_name, product_price = product.name, product.price
     db.delete(product)
     db.commit()
+    if admin.phone:
+        try:
+            send_product_deleted_whatsapp(admin.phone, admin.name, product_name, product_price)
+        except Exception as e:
+            print(f"[WARN] WhatsApp eliminación producto: {e}")
     return {"message": "Producto eliminado"}

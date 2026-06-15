@@ -65,3 +65,10 @@ def send_product_whatsapp(phone: str, admin_name: str, product_name: str, price:
         "to": phone, "admin_name": admin_name,
         "product_name": product_name, "price": price, "stock": stock,
     })
+
+
+def send_product_deleted_whatsapp(phone: str, admin_name: str, product_name: str, price: float):
+    _post("/notify/sms/product-deleted", {
+        "to": phone, "admin_name": admin_name,
+        "product_name": product_name, "price": price,
+    })

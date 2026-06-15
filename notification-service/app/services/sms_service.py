@@ -26,11 +26,24 @@ def _sns(to: str, message: str):
         return {"sent": False, "error": str(e)}
 
 
+def _whatsapp_number(number: str) -> str:
+    """Ensure number has whatsapp: prefix and + country code."""
+    n = number.strip()
+    if n.startswith("whatsapp:"):
+        return n
+    if not n.startswith("+"):
+        n = "+" + n
+    return f"whatsapp:{n}"
+
+
 def _twilio(to: str, message: str):
     try:
         from twilio.rest import Client
+        from_number = _whatsapp_number(settings.twilio_from_number)
+        to_number = _whatsapp_number(to)
+        print(f"[TWILIO] Enviando WhatsApp from={from_number} to={to_number}")
         Client(settings.twilio_account_sid, settings.twilio_auth_token).messages.create(
-            body=message, from_=settings.twilio_from_number, to=to
+            body=message, from_=from_number, to=to_number
         )
         return {"sent": True}
     except Exception as e:

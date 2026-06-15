@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./sales.db"
     secret_key: str = "change-me-in-production"
-    payment_service_url: str = "http://online-sales-alb-1964549465.us-east-1.elb.amazonaws.com/payment/pay"
+    payment_service_url: str = "http://online-sales-alb-1725836928.us-east-1.elb.amazonaws.com/payment/pay"
     notification_service_url: str = "http://localhost:8002"
 
     # AWS (solo para S3)

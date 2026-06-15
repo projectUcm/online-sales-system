@@ -64,7 +64,7 @@ export interface AdminStats {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private baseUrl = 'http://online-sales-alb-1964549465.us-east-1.elb.amazonaws.com';
+  private baseUrl = 'http://online-sales-alb-1725836928.us-east-1.elb.amazonaws.com';
 
   constructor(private http: HttpClient) {}
 
@@ -189,6 +189,19 @@ export class ApiService {
         security_code: securityCode,
         items,
       }).pipe(timeout(30000)),
+    );
+  }
+
+  getMe(): Promise<{ id: number; name: string; email: string; phone: string; role: string }> {
+    return firstValueFrom(
+      this.http.get<any>(`${this.baseUrl}/users/me`).pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  updatePhone(phone: string): Promise<{ message: string; phone: string }> {
+    return firstValueFrom(
+      this.http.patch<{ message: string; phone: string }>(`${this.baseUrl}/users/me/phone`, { phone })
+        .pipe(timeout(HTTP_TIMEOUT)),
     );
   }
 

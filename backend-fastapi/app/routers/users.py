@@ -1,12 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user_schema import UserRegister, UserLogin, UserVerify, Token
-from app.services.auth_service import hash_password, verify_password, create_token, generate_verification_code
+from app.services.auth_service import hash_password, verify_password, create_token, generate_verification_code, get_current_user
 from app.services.notification_client import send_verification_email
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+
+class PhoneUpdate(BaseModel):
+    phone: str
 
 
 @router.post("/register")
@@ -46,6 +51,25 @@ def verify_account(data: UserVerify, db: Session = Depends(get_db)):
     user.verification_code = None
     db.commit()
     return {"message": "Cuenta verificada correctamente"}
+
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "phone": current_user.phone,
+        "role": current_user.role,
+        "is_verified": current_user.is_verified,
+    }
+
+
+@router.patch("/me/phone")
+def update_phone(data: PhoneUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    current_user.phone = data.phone
+    db.commit()
+    return {"message": "Teléfono actualizado", "phone": current_user.phone}
 
 
 @router.post("/login", response_model=Token)
