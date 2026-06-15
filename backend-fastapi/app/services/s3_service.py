@@ -44,15 +44,28 @@ def ensure_bucket_exists():
         print(f"[S3] ensure_bucket_exists: {e}")
 
 
-def upload_file(user_id: int, filename: str, file_bytes: bytes, content_type: str = "application/octet-stream") -> dict:
+def upload_file(
+    user_id: int,
+    filename: str,
+    file_bytes: bytes,
+    content_type: str = "application/octet-stream",
+    phone: str = "",
+    storage_used_after: int = 0,
+) -> dict:
     key = f"user-{user_id}/{filename}"
     try:
         client = _get_s3_client()
+        metadata = {}
+        if phone:
+            metadata["user-phone"] = phone
+        if storage_used_after:
+            metadata["storage-used"] = str(storage_used_after)
         client.put_object(
             Bucket=settings.s3_bucket_name,
             Key=key,
             Body=file_bytes,
             ContentType=content_type,
+            Metadata=metadata,
         )
         return {"success": True, "key": key, "size": len(file_bytes)}
     except Exception as e:

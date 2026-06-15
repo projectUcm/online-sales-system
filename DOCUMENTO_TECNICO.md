@@ -26,10 +26,14 @@ online-sales-alb-1964549465.us-east-1.elb.amazonaws.com
                 │
                 ├──► Amazon RDS (PostgreSQL)
                 ├──► Amazon S3 (Archivos de usuarios)
+                │         │
+                │         └──► AWS Lambda (s3-file-notification)
+                │                       │
+                │                       └──► Twilio → WhatsApp (al subir archivo)
                 └──► Microservicio Notificaciones ─── EC2 (Docker)
                               │
                               ├──► SMTP (Gmail) → Correos
-                              └──► Twilio → SMS / WhatsApp
+                              └──► Twilio → SMS / WhatsApp (registro y compras)
 ```
 
 ### 2.2 Servicios AWS Utilizados
@@ -40,9 +44,10 @@ online-sales-alb-1964549465.us-east-1.elb.amazonaws.com
 | **Amazon EC2 (t2.micro)** | Aloja el microservicio de notificaciones en Docker |
 | **Amazon RDS PostgreSQL (db.t3.micro)** | Base de datos relacional del sistema |
 | **Amazon S3** | Almacenamiento de archivos de usuarios |
+| **AWS Lambda** | Función serverless disparada automáticamente al subir un archivo a S3 para enviar notificación WhatsApp vía Twilio |
 | **Amazon ECR** | Registro privado de imágenes Docker |
 | **Application Load Balancer** | Enrutamiento de tráfico hacia los microservicios |
-| **Amazon CloudWatch** | Logs de los contenedores ECS |
+| **Amazon CloudWatch** | Logs de los contenedores ECS y de la función Lambda |
 | **Amazon IAM** | Gestión de permisos y roles |
 
 ---
@@ -120,13 +125,16 @@ El backend lo llama por HTTP. Si el servicio no está disponible, el backend hac
    - Correo con detalle del pago (ID transacción, monto, estado)
 ```
 
-### Flujo 3 — Subida de Archivos
+### Flujo 3 — Subida de Archivos (Event-Driven con Lambda)
 ```
 1. Usuario sube archivo desde /files
 2. Backend verifica que no exceda 2 GB por usuario
 3. Archivo se almacena en S3: bucket/user-{id}/filename
+   └── Se incluye metadata del objeto: user-phone, storage-used
 4. Backend actualiza storage_used en base de datos
-5. Backend llama a notification-service → SMS/WhatsApp con:
+5. S3 dispara automáticamente la función Lambda s3-file-notification
+6. Lambda lee la metadata del objeto S3 (teléfono, espacio usado)
+7. Lambda envía WhatsApp vía Twilio con:
    - Nombre del archivo
    - Fecha y hora de carga
    - Espacio utilizado
@@ -135,7 +143,41 @@ El backend lo llama por HTTP. Si el servicio no está disponible, el backend hac
 
 ---
 
-## 5. Almacenamiento en S3 — Justificación de Alternativa B
+## 5. AWS Lambda — Notificación Serverless por Evento S3
+
+### Función: `s3-file-notification`
+
+Se implementó una función AWS Lambda que se dispara automáticamente cada vez que un usuario sube un archivo al bucket S3 (`nexstore-user-files`). Esto desacopla la lógica de notificación del backend, adoptando una arquitectura **event-driven serverless**.
+
+**Configuración:**
+- **Runtime:** Python 3.11
+- **Trigger:** S3 Event `ObjectCreated:*` sobre el bucket `nexstore-user-files`
+- **Timeout:** 30 segundos
+- **Memoria:** 128 MB
+
+**Funcionamiento:**
+1. S3 invoca automáticamente la función al detectar un nuevo objeto.
+2. La Lambda extrae el `user_id` del prefijo de la clave (`user-{id}/filename`).
+3. Lee la metadata del objeto S3 (`user-phone`, `storage-used`) que el backend almacena al subir.
+4. Calcula el espacio disponible restante.
+5. Envía una notificación WhatsApp vía Twilio con el resumen de la carga.
+
+**Ventajas sobre el enfoque anterior:**
+- El backend no necesita gestionar la notificación de archivos.
+- La Lambda se ejecuta de forma asíncrona, sin bloquear la respuesta al usuario.
+- Tolerante a fallos: si la Lambda falla, el archivo ya fue subido correctamente.
+- Escalabilidad automática: AWS Lambda escala sin configuración adicional.
+
+**Variables de entorno:**
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_FROM_NUMBER`
+
+**IAM Role requerido:** `lambda-s3-notification-role` con permisos `s3:GetObject`, `s3:HeadObject` sobre el bucket.
+
+---
+
+## 6. Almacenamiento en S3 — Justificación de Alternativa B
 
 Se implementó la **Alternativa B: bucket centralizado con carpetas por usuario** (`user-{id}/`).
 
@@ -153,7 +195,7 @@ Con la Alternativa B se evita alcanzar el límite de buckets de AWS y simplifica
 
 ---
 
-## 6. Pipeline CI/CD
+## 7. Pipeline CI/CD
 
 Se utiliza **GitHub Actions** con el workflow `.github/workflows/deploy.yml`.
 
@@ -170,17 +212,18 @@ Push a main
     └── notification-service:latest
     │
     ▼ (en paralelo)
-[Deploy Backend]     → ECS Fargate (actualiza task definition)
-[Deploy Payment]     → ECS Fargate (actualiza task definition)
-[Deploy Frontend]    → ECS Fargate (actualiza task definition)
-[Deploy Notification]→ EC2 vía SSH (docker pull + docker run)
+[Deploy Backend]      → ECS Fargate (actualiza task definition)
+[Deploy Payment]      → ECS Fargate (actualiza task definition)
+[Deploy Frontend]     → ECS Fargate (actualiza task definition)
+[Deploy Notification] → EC2 vía SSH (docker pull + docker run)
+[Deploy Lambda]       → AWS Lambda (empaqueta + sube código Python)
 ```
 
 Todos los secretos (credenciales AWS, SMTP, Twilio, base de datos) se inyectan como variables de entorno en tiempo de despliegue desde GitHub Secrets, sin estar hardcodeados en el código.
 
 ---
 
-## 7. Seguridad
+## 8. Seguridad
 
 - Autenticación mediante **JWT Bearer tokens** con expiración
 - Contraseñas hasheadas con **bcrypt**
@@ -191,10 +234,11 @@ Todos los secretos (credenciales AWS, SMTP, Twilio, base de datos) se inyectan c
   - EC2 (notification): solo accesible desde ECS y SSH para CI/CD
   - ALB: único punto de entrada público (puertos 80/443)
 - Archivos S3 accedidos mediante **URLs prefirmadas** (presigned URLs) con expiración de 1 hora
+- Lambda con IAM role de mínimo privilegio (solo `s3:GetObject`, `s3:HeadObject`)
 
 ---
 
-## 8. Infraestructura Desplegada
+## 9. Infraestructura Desplegada
 
 | Recurso | Identificador / Endpoint |
 |---|---|
@@ -202,13 +246,14 @@ Todos los secretos (credenciales AWS, SMTP, Twilio, base de datos) se inyectan c
 | ECS Cluster | `online-sales-cluster` |
 | RDS Endpoint | `nexstore-db.cwnm04kga8ij.us-east-1.rds.amazonaws.com` |
 | S3 Bucket | `nexstore-user-files` |
+| Lambda Function | `s3-file-notification` (región `us-east-1`) |
 | EC2 Notification | IP `44.193.77.218`, puerto `8002` |
 | ECR Registry | `788356290964.dkr.ecr.us-east-1.amazonaws.com` |
 | Región AWS | `us-east-1` |
 
 ---
 
-## 9. Tecnologías Utilizadas
+## 10. Tecnologías Utilizadas
 
 | Capa | Tecnología |
 |---|---|
@@ -218,6 +263,7 @@ Todos los secretos (credenciales AWS, SMTP, Twilio, base de datos) se inyectan c
 | Contenedores | Docker + Amazon ECS Fargate |
 | Orquestación | Amazon ECS |
 | Almacenamiento | Amazon S3 |
+| Serverless | AWS Lambda (Python 3.11) |
 | Correo | SMTP (Gmail) vía smtplib |
 | SMS/WhatsApp | Twilio |
 | CI/CD | GitHub Actions |

@@ -1,11 +1,9 @@
-from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.services.auth_service import get_current_user
 from app.services.s3_service import upload_file, list_user_files, delete_file, get_presigned_url
-from app.services.notification_client import send_file_upload_sms
 from app.config.settings import settings
 
 router = APIRouter(prefix="/files", tags=["Files"])
@@ -26,22 +24,24 @@ async def upload(
     if current_usage + file_size > STORAGE_LIMIT:
         raise HTTPException(status_code=400, detail="Sin espacio disponible (límite 2 GB)")
 
-    result = upload_file(current_user.id, file.filename, content, file.content_type or "application/octet-stream")
+    storage_used_after = current_usage + file_size
+    sms_phone = phone or current_user.phone or ""
+
+    result = upload_file(
+        current_user.id,
+        file.filename,
+        content,
+        file.content_type or "application/octet-stream",
+        phone=sms_phone,
+        storage_used_after=storage_used_after,
+    )
     if not result["success"]:
         raise HTTPException(status_code=500, detail=f"Error al subir archivo: {result.get('error')}")
 
-    current_user.storage_used = current_usage + file_size
+    current_user.storage_used = storage_used_after
     db.commit()
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     available = STORAGE_LIMIT - current_user.storage_used
-    sms_phone = phone or current_user.phone or ""
-    if sms_phone:
-        try:
-            send_file_upload_sms(sms_phone, file.filename, now, current_user.storage_used, available)
-        except Exception as e:
-            print(f"[WARN] SMS no enviado: {e}")
-
     return {
         "message": "Archivo subido correctamente",
         "filename": file.filename,

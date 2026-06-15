@@ -199,7 +199,50 @@ aws ecs update-service \
 log "payment-service → desired: 1"
 
 # ─────────────────────────────────────────────
-# 8. Summary
+# 8. IAM Role para Lambda (solo si no existe)
+# ─────────────────────────────────────────────
+LAMBDA_ROLE="lambda-s3-notification-role"
+log "Verificando IAM role $LAMBDA_ROLE..."
+
+if ! aws iam get-role --role-name "$LAMBDA_ROLE" --region "$REGION" > /dev/null 2>&1; then
+  log "Creando IAM role $LAMBDA_ROLE..."
+  aws iam create-role \
+    --role-name "$LAMBDA_ROLE" \
+    --assume-role-policy-document '{
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Effect": "Allow",
+        "Principal": { "Service": "lambda.amazonaws.com" },
+        "Action": "sts:AssumeRole"
+      }]
+    }' \
+    --region "$REGION" > /dev/null
+
+  aws iam attach-role-policy \
+    --role-name "$LAMBDA_ROLE" \
+    --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole \
+    --region "$REGION"
+
+  aws iam put-role-policy \
+    --role-name "$LAMBDA_ROLE" \
+    --policy-name s3-read-metadata \
+    --policy-document '{
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Effect": "Allow",
+        "Action": ["s3:GetObject", "s3:HeadObject"],
+        "Resource": "arn:aws:s3:::nexstore-user-files/*"
+      }]
+    }' \
+    --region "$REGION"
+
+  log "IAM role $LAMBDA_ROLE creado con permisos S3 y CloudWatch Logs."
+else
+  log "IAM role $LAMBDA_ROLE ya existe."
+fi
+
+# ─────────────────────────────────────────────
+# 9. Summary
 # ─────────────────────────────────────────────
 echo ""
 echo "============================================"
@@ -213,4 +256,7 @@ echo "  http://$ALB_DNS/payment/pay"
 echo ""
 echo "  RDS y EC2 pueden tardar 3-5 min adicionales"
 echo "  en estar completamente disponibles."
+echo ""
+echo "  Lambda IAM role: $LAMBDA_ROLE"
+echo "  (El deploy del pipeline crea la función Lambda automáticamente)"
 echo "============================================"
