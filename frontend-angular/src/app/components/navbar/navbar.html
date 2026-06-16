@@ -7,7 +7,14 @@
     <span>NEXSTORE</span>
   </a>
 
-  @if (auth.isLoggedIn() && !auth.isAdmin()) {
+  @if (auth.isLoggedIn() && auth.isAdmin()) {
+    <!-- Administrador -->
+    <div class="nav-links">
+      <a routerLink="/products" routerLinkActive="active">Productos</a>
+      <a routerLink="/admin" routerLinkActive="active">Panel Admin</a>
+      <button class="nav-logout" (click)="auth.logout()">Salir →</button>
+    </div>
+  } @else if (auth.isLoggedIn() && !auth.isAdmin()) {
     <!-- Cliente autenticado -->
     <div class="nav-links">
       <a routerLink="/products" routerLinkActive="active">Productos</a>
