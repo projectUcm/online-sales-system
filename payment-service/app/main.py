@@ -11,6 +11,11 @@ def root():
     return {"message": "Payment service funcionando"}
 
 
-@app.get("/payment/health")
+@app.get("/health")
 def health():
+    return {"status": "ok"}
+
+
+@app.get("/payment/health")
+def health_payment():
     return {"status": "ok"}
