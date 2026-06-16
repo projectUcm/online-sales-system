@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, FileItem, StorageInfo } from '../../services/api';
@@ -23,7 +23,7 @@ export class FilesComponent implements OnInit {
   phone = '';
   dragOver = false;
 
-  constructor(private api: ApiService, private auth: AuthService) {}
+  constructor(private api: ApiService, private auth: AuthService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     const user = this.auth.getUser();
@@ -43,6 +43,7 @@ export class FilesComponent implements OnInit {
       this.error = 'Error al cargar archivos';
     } finally {
       this.loading = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -59,7 +60,10 @@ export class FilesComponent implements OnInit {
 
   onFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (input.files?.length) this.uploadFile(input.files[0]);
+    if (input.files?.length) {
+      this.uploadFile(input.files[0]);
+      input.value = '';
+    }
   }
 
   onDrop(event: DragEvent) {
@@ -94,9 +98,15 @@ export class FilesComponent implements OnInit {
   }
 
   async download(filename: string) {
+    this.error = '';
+    this.success = '';
     try {
       const res = await this.api.getDownloadUrl(filename);
-      window.open(res.url, '_blank');
+      const a = document.createElement('a');
+      a.href = res.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.click();
     } catch {
       this.error = 'Error al obtener enlace de descarga';
     }
@@ -113,12 +123,15 @@ export class FilesComponent implements OnInit {
 
   async deleteFile(filename: string) {
     if (!confirm(`¿Eliminar "${filename}"?`)) return;
+    this.error = '';
+    this.success = '';
     try {
       await this.api.deleteFile(filename);
       this.success = `"${filename}" eliminado`;
       await this.load();
     } catch {
       this.error = 'Error al eliminar el archivo';
+      this.cdr.detectChanges();
     }
   }
 }
