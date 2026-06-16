@@ -59,6 +59,7 @@ export class AdminComponent implements OnInit {
 
   async setTab(t: 'products' | 'orders') {
     this.tab = t;
+    this.cdr.detectChanges();
     if (t === 'orders' && this.allOrders.length === 0) await this.loadOrders();
   }
 
