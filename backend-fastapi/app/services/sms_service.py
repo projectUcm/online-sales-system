@@ -36,10 +36,23 @@ def _send_via_sns(phone_number: str, message: str):
         print(f"[SNS ERROR] {e}")
 
 
+def _whatsapp_number(number: str) -> str:
+    n = number.strip()
+    if n.startswith("whatsapp:"):
+        return n
+    if not n.startswith("+"):
+        n = "+" + n
+    return f"whatsapp:{n}"
+
+
 def _send_via_twilio(phone_number: str, message: str):
     try:
         from twilio.rest import Client
         client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
-        client.messages.create(body=message, from_=settings.twilio_from_number, to=phone_number)
+        client.messages.create(
+            body=message,
+            from_=_whatsapp_number(settings.twilio_from_number),
+            to=_whatsapp_number(phone_number),
+        )
     except Exception as e:
         print(f"[TWILIO ERROR] {e}")

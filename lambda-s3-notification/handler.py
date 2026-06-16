@@ -8,6 +8,15 @@ from twilio.rest import Client as TwilioClient
 STORAGE_LIMIT = 2 * 1024 * 1024 * 1024  # 2 GB
 
 
+def _wa(number: str) -> str:
+    n = number.strip()
+    if n.startswith("whatsapp:"):
+        return n
+    if not n.startswith("+"):
+        n = "+" + n
+    return f"whatsapp:{n}"
+
+
 def lambda_handler(event, context):
     for record in event.get("Records", []):
         if record.get("eventSource") != "aws:s3":
@@ -61,9 +70,7 @@ def lambda_handler(event, context):
 
         try:
             client = TwilioClient(account_sid, auth_token)
-            to_wa = phone if phone.startswith("whatsapp:") else f"whatsapp:{phone}"
-            from_wa = from_number if from_number.startswith("whatsapp:") else f"whatsapp:{from_number}"
-            client.messages.create(body=message, from_=from_wa, to=to_wa)
+            client.messages.create(body=message, from_=_wa(from_number), to=_wa(phone))
             print(f"[LAMBDA] WhatsApp enviado a {phone} por archivo {filename}")
         except Exception as e:
             print(f"[LAMBDA] Error Twilio: {e}")

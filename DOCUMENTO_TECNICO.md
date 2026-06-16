@@ -216,7 +216,6 @@ Push a main
 [Deploy Payment]      → ECS Fargate (actualiza task definition)
 [Deploy Frontend]     → ECS Fargate (actualiza task definition)
 [Deploy Notification] → EC2 vía SSH (docker pull + docker run)
-[Deploy Lambda]       → AWS Lambda (empaqueta + sube código Python)
 ```
 
 Todos los secretos (credenciales AWS, SMTP, Twilio, base de datos) se inyectan como variables de entorno en tiempo de despliegue desde GitHub Secrets, sin estar hardcodeados en el código.
@@ -242,7 +241,7 @@ Todos los secretos (credenciales AWS, SMTP, Twilio, base de datos) se inyectan c
 
 | Recurso | Identificador / Endpoint |
 |---|---|
-| ALB (URL pública) | `http://online-sales-alb-1964549465.us-east-1.elb.amazonaws.com` |
+| ALB (URL pública) | `http://online-sales-alb-1725836928.us-east-1.elb.amazonaws.com` |
 | ECS Cluster | `online-sales-cluster` |
 | RDS Endpoint | `nexstore-db.cwnm04kga8ij.us-east-1.rds.amazonaws.com` |
 | S3 Bucket | `nexstore-user-files` |

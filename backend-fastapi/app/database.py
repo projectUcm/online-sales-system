@@ -35,12 +35,16 @@ def run_migrations():
                 """CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER REFERENCES users(id),
+                    guest_email VARCHAR,
+                    guest_name VARCHAR,
                     order_ref VARCHAR NOT NULL,
                     total FLOAT NOT NULL,
                     status VARCHAR DEFAULT 'approved',
                     items_json VARCHAR NOT NULL,
                     created_at VARCHAR NOT NULL
                 )""",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_email VARCHAR",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_name VARCHAR",
             ]
         else:
             migrations = []
