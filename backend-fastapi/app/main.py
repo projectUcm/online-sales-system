@@ -1,15 +1,13 @@
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from app.database import Base, engine, SessionLocal, get_db, run_migrations
+from app.database import Base, engine, SessionLocal, run_migrations
 from app.models.product import Product
-from app.models.user import User
-from app.models.cart import CartItem
+from app.models.user import User  # noqa: F401
+from app.models.cart import CartItem  # noqa: F401
 from app.routers import products, users, cart, checkout, orders, reviews
-from app.models.order import Order
-from app.models.review import Review
+from app.models.order import Order  # noqa: F401
+from app.models.review import Review  # noqa: F401
 from app.services.auth_service import hash_password
-from app.services.auth_service import require_admin
 
 Base.metadata.create_all(bind=engine)
 run_migrations()
@@ -86,22 +84,3 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-# TEMPORAL: endpoint de un solo uso para dejar la BD sin cuentas antes de la demo,
-# confirmado explícitamente por el usuario (borra usuarios + carritos + órdenes +
-# reseñas asociadas, ya que no pueden quedar huérfanos por integridad referencial).
-# Requiere un token de administrador vigente. Se retira del código apenas se usa.
-@app.post("/admin/reset-users")
-def _reset_users(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
-    reviews_deleted = db.query(Review).delete()
-    cart_deleted = db.query(CartItem).delete()
-    orders_deleted = db.query(Order).delete()
-    users_deleted = db.query(User).delete()
-    db.commit()
-    return {
-        "users_deleted": users_deleted,
-        "cart_items_deleted": cart_deleted,
-        "orders_deleted": orders_deleted,
-        "reviews_deleted": reviews_deleted,
-    }
