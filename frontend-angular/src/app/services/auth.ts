@@ -7,7 +7,7 @@ import { firstValueFrom, timeout } from 'rxjs';
 export class AuthService {
   private tokenKey = 'auth_token';
   private userKey = 'auth_user';
-  private baseUrl = 'http://online-sales-alb-1725836928.us-east-1.elb.amazonaws.com';
+  private baseUrl = 'http://online-sales-alb-701754504.us-east-1.elb.amazonaws.com';
 
   constructor(private http: HttpClient, private router: Router) {}
 

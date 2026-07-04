@@ -64,7 +64,7 @@ export interface AdminStats {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private baseUrl = 'http://online-sales-alb-1725836928.us-east-1.elb.amazonaws.com';
+  private baseUrl = 'http://online-sales-alb-701754504.us-east-1.elb.amazonaws.com';
 
   constructor(private http: HttpClient) {}
 

@@ -6,7 +6,7 @@ from app.config.settings import settings
 
 def send_email(to: str, subject: str, body_html: str) -> dict:
     if not settings.smtp_user or not settings.smtp_password:
-        print(f"[EMAIL MOCK] To:{to} | {subject}")
+        print(f"[EMAIL MOCK] To:{to} | {subject}\n{body_html}")
         return {"sent": True, "mock": True}
     try:
         msg = MIMEMultipart("alternative")

@@ -10,22 +10,46 @@ CLUSTER="online-sales-cluster"
 VPC_ID="vpc-042d2e1307625eb92"
 ALB_SG="sg-0a878aa944300d95a"
 SUBNETS="subnet-0f48269bf0b074f78 subnet-0924abc8d4ee44252 subnet-03d5df42b54827acb"
-EC2_INSTANCE_ID="i-02c27e5a365e72c83"
+EC2_NOTIFICATION_SG="sg-0f81e34a2d76066d9"
+EC2_NOTIFICATION_SUBNET="subnet-0924abc8d4ee44252"
+EC2_KEY_NAME="nexstore-ec2-key"
 RDS_IDENTIFIER="nexstore-db"
+RDS_SG="sg-0ce3328fb88940b0c"
+RDS_SUBNET_GROUP="nexstore-rds-subnet-group"
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
 # ─────────────────────────────────────────────
-# 1. Start RDS if stopped
+# 1. Start or create RDS
 # ─────────────────────────────────────────────
 log "Verificando estado de RDS..."
 RDS_STATUS=$(aws rds describe-db-instances \
   --db-instance-identifier "$RDS_IDENTIFIER" \
   --region "$REGION" \
   --query "DBInstances[0].DBInstanceStatus" \
-  --output text)
+  --output text 2>/dev/null || echo "not-found")
 
-if [ "$RDS_STATUS" = "stopped" ]; then
+if [ "$RDS_STATUS" = "not-found" ]; then
+  log "RDS $RDS_IDENTIFIER no existe. Creando instancia nueva..."
+  DB_PASSWORD=$(python3 -c "import secrets,string; a=string.ascii_letters+string.digits; print(''.join(secrets.choice(a) for _ in range(24)))")
+  aws rds create-db-instance \
+    --db-instance-identifier "$RDS_IDENTIFIER" \
+    --db-instance-class db.t3.micro \
+    --engine postgres \
+    --engine-version 15.14 \
+    --master-username nexstore_admin \
+    --master-user-password "$DB_PASSWORD" \
+    --allocated-storage 20 \
+    --db-name sales \
+    --db-subnet-group-name "$RDS_SUBNET_GROUP" \
+    --vpc-security-group-ids "$RDS_SG" \
+    --backup-retention-period 1 \
+    --no-multi-az \
+    --no-publicly-accessible \
+    --region "$REGION" > /dev/null
+  log "RDS creandose (puede tardar 5-10 min). Password guardada, actualizando secret DATABASE_URL luego de que quede available."
+  NEW_RDS_PASSWORD="$DB_PASSWORD"
+elif [ "$RDS_STATUS" = "stopped" ]; then
   log "Iniciando RDS $RDS_IDENTIFIER..."
   aws rds start-db-instance --db-instance-identifier "$RDS_IDENTIFIER" --region "$REGION" > /dev/null
   log "RDS iniciando (puede tardar 3-5 min en quedar available)..."
@@ -34,21 +58,65 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# 2. Start EC2 if stopped
+# 2. Find or create EC2 notification instance
 # ─────────────────────────────────────────────
-log "Verificando estado de EC2..."
-EC2_STATUS=$(aws ec2 describe-instances \
-  --instance-ids "$EC2_INSTANCE_ID" \
+log "Buscando instancia EC2 de notification-service..."
+EC2_INSTANCE_ID=$(aws ec2 describe-instances \
+  --filters "Name=tag:Name,Values=nexstore-notification" "Name=instance-state-name,Values=running,stopped" \
   --region "$REGION" \
-  --query "Reservations[0].Instances[0].State.Name" \
-  --output text)
+  --query "Reservations[0].Instances[0].InstanceId" \
+  --output text 2>/dev/null || echo "None")
 
-if [ "$EC2_STATUS" = "stopped" ]; then
-  log "Iniciando EC2 $EC2_INSTANCE_ID..."
-  aws ec2 start-instances --instance-ids "$EC2_INSTANCE_ID" --region "$REGION" > /dev/null
-  log "EC2 iniciando..."
+if [ "$EC2_INSTANCE_ID" = "None" ] || [ -z "$EC2_INSTANCE_ID" ]; then
+  log "No existe instancia EC2 de notification-service. Creando una nueva..."
+  cat > /tmp/nexstore-userdata.sh << 'USERDATA'
+#!/bin/bash
+yum update -y
+amazon-linux-extras install docker -y
+systemctl enable docker
+systemctl start docker
+usermod -aG docker ec2-user
+USERDATA
+  EC2_INSTANCE_ID=$(aws ec2 run-instances \
+    --image-id "$(aws ec2 describe-images --owners amazon --filters 'Name=name,Values=amzn2-ami-hvm-*-x86_64-gp2' 'Name=state,Values=available' --query 'sort_by(Images, &CreationDate)[-1].ImageId' --region "$REGION" --output text)" \
+    --instance-type t3.micro \
+    --key-name "$EC2_KEY_NAME" \
+    --security-group-ids "$EC2_NOTIFICATION_SG" \
+    --subnet-id "$EC2_NOTIFICATION_SUBNET" \
+    --associate-public-ip-address \
+    --user-data file:///tmp/nexstore-userdata.sh \
+    --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=nexstore-notification}]' \
+    --region "$REGION" \
+    --query "Instances[0].InstanceId" \
+    --output text)
+  rm -f /tmp/nexstore-userdata.sh
+  log "EC2 creada: $EC2_INSTANCE_ID. Esperando que este running..."
+  aws ec2 wait instance-running --instance-ids "$EC2_INSTANCE_ID" --region "$REGION"
+
+  ALLOC_ID=$(aws ec2 allocate-address --domain vpc --region "$REGION" --query "AllocationId" --output text)
+  aws ec2 associate-address --instance-id "$EC2_INSTANCE_ID" --allocation-id "$ALLOC_ID" --region "$REGION" > /dev/null
+  NEW_EC2_IP=$(aws ec2 describe-addresses --allocation-ids "$ALLOC_ID" --region "$REGION" --query "Addresses[0].PublicIp" --output text)
+  log "Elastic IP asociada: $NEW_EC2_IP"
+
+  if command -v gh > /dev/null 2>&1; then
+    gh secret set EC2_NOTIFICATION_HOST --body "$NEW_EC2_IP"
+    log "Secret EC2_NOTIFICATION_HOST actualizado -> $NEW_EC2_IP"
+  else
+    log "IMPORTANTE: actualiza manualmente el secret EC2_NOTIFICATION_HOST con: $NEW_EC2_IP"
+  fi
 else
-  log "EC2 ya esta en estado: $EC2_STATUS"
+  EC2_STATUS=$(aws ec2 describe-instances \
+    --instance-ids "$EC2_INSTANCE_ID" \
+    --region "$REGION" \
+    --query "Reservations[0].Instances[0].State.Name" \
+    --output text)
+  if [ "$EC2_STATUS" = "stopped" ]; then
+    log "Iniciando EC2 $EC2_INSTANCE_ID..."
+    aws ec2 start-instances --instance-ids "$EC2_INSTANCE_ID" --region "$REGION" > /dev/null
+    log "EC2 iniciando..."
+  else
+    log "EC2 ya esta en estado: $EC2_STATUS"
+  fi
 fi
 
 # ─────────────────────────────────────────────
@@ -169,6 +237,39 @@ aws elbv2 create-rule \
   --region "$REGION" > /dev/null
 log "Regla /payment/* → payment (prioridad 20)"
 
+# Rutas reales del backend (users/products/cart/checkout/files) → backend
+priority=30
+for path in "/users/*" "/products/*" "/cart/*" "/checkout/*" "/files/*"; do
+  aws elbv2 create-rule \
+    --listener-arn "$LISTENER_ARN" \
+    --conditions Field=path-pattern,Values="$path" \
+    --priority "$priority" \
+    --actions Type=forward,TargetGroupArn="$TG_BACKEND_ARN" \
+    --region "$REGION" > /dev/null
+  log "Regla $path → backend (prioridad $priority)"
+  priority=$((priority+1))
+done
+
+# ─────────────────────────────────────────────
+# 6b. If RDS was just created, wait for it and update DATABASE_URL secret
+# ─────────────────────────────────────────────
+if [ -n "${NEW_RDS_PASSWORD:-}" ]; then
+  log "Esperando a que la RDS quede available para obtener su endpoint..."
+  aws rds wait db-instance-available --db-instance-identifier "$RDS_IDENTIFIER" --region "$REGION"
+  RDS_ENDPOINT=$(aws rds describe-db-instances \
+    --db-instance-identifier "$RDS_IDENTIFIER" \
+    --region "$REGION" \
+    --query "DBInstances[0].Endpoint.Address" \
+    --output text)
+  DATABASE_URL="postgresql://nexstore_admin:${NEW_RDS_PASSWORD}@${RDS_ENDPOINT}:5432/sales"
+  if command -v gh > /dev/null 2>&1; then
+    gh secret set DATABASE_URL --body "$DATABASE_URL"
+    log "Secret DATABASE_URL actualizado con el nuevo endpoint de RDS."
+  else
+    log "IMPORTANTE: actualiza manualmente el secret DATABASE_URL con: $DATABASE_URL"
+  fi
+fi
+
 # ─────────────────────────────────────────────
 # 7. Update ECS services to desired=1 and attach to new target groups
 # ─────────────────────────────────────────────
@@ -242,7 +343,53 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# 9. Summary
+# 9. Auto-update source files with new ALB DNS
+# ─────────────────────────────────────────────
+log "Actualizando archivos fuente con el nuevo ALB DNS..."
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Update frontend API base URL
+API_TS="$REPO_ROOT/frontend-angular/src/app/services/api.ts"
+sed -i.bak "s|private baseUrl = '[^']*'|private baseUrl = 'http://$ALB_DNS'|" "$API_TS"
+rm -f "$API_TS.bak"
+log "frontend api.ts actualizado → http://$ALB_DNS"
+
+AUTH_TS="$REPO_ROOT/frontend-angular/src/app/services/auth.ts"
+sed -i.bak "s|private baseUrl = '[^']*'|private baseUrl = 'http://$ALB_DNS'|" "$AUTH_TS"
+rm -f "$AUTH_TS.bak"
+log "frontend auth.ts actualizado → http://$ALB_DNS"
+
+# Update backend default payment URL
+SETTINGS_PY="$REPO_ROOT/backend-fastapi/app/config/settings.py"
+sed -i.bak "s|payment_service_url: str = \"[^\"]*\"|payment_service_url: str = \"http://$ALB_DNS/payment/pay\"|" "$SETTINGS_PY"
+rm -f "$SETTINGS_PY.bak"
+log "backend settings.py actualizado → http://$ALB_DNS/payment/pay"
+
+# Update backend task definition default
+TASK_DEF="$REPO_ROOT/.aws/task-def-backend.json"
+sed -i.bak "s|http://online-sales-alb-[^/]*/payment/pay|http://$ALB_DNS/payment/pay|g" "$TASK_DEF"
+rm -f "$TASK_DEF.bak"
+log "task-def-backend.json actualizado"
+
+# Commit and push to trigger CI/CD pipeline
+cd "$REPO_ROOT"
+git add \
+  frontend-angular/src/app/services/api.ts \
+  frontend-angular/src/app/services/auth.ts \
+  backend-fastapi/app/config/settings.py \
+  .aws/task-def-backend.json
+
+if git diff --cached --quiet; then
+  log "No hay cambios que commitear (el DNS no cambió)."
+else
+  git commit -m "chore: update ALB DNS to $ALB_DNS"
+  git push
+  log "Cambios pusheados → pipeline de CI/CD iniciado automáticamente."
+fi
+
+# ─────────────────────────────────────────────
+# 10. Summary
 # ─────────────────────────────────────────────
 echo ""
 echo "============================================"
@@ -250,9 +397,14 @@ echo "  Infraestructura recreada exitosamente"
 echo "============================================"
 echo "  ALB DNS:  http://$ALB_DNS"
 echo ""
-echo "  IMPORTANTE: actualiza la variable"
-echo "  PAYMENT_SERVICE_URL en el task def backend:"
-echo "  http://$ALB_DNS/payment/pay"
+echo "  Archivos actualizados automáticamente:"
+echo "    - frontend-angular/src/app/services/api.ts"
+echo "    - frontend-angular/src/app/services/auth.ts"
+echo "    - backend-fastapi/app/config/settings.py"
+echo "    - .aws/task-def-backend.json"
+echo ""
+echo "  CI/CD pipeline iniciado para redeployar"
+echo "  el frontend y el backend con el nuevo DNS."
 echo ""
 echo "  RDS y EC2 pueden tardar 3-5 min adicionales"
 echo "  en estar completamente disponibles."

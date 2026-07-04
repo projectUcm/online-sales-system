@@ -51,11 +51,26 @@ jobs:
           docker push $IMAGE
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
+      - name: Obtener ALB DNS actual
+        id: get-alb
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --query "LoadBalancers[?contains(LoadBalancerName,'online-sales')].DNSName" \
+            --output text 2>/dev/null || true)
+          echo "alb_dns=$ALB_DNS" >> $GITHUB_OUTPUT
+          echo "ALB DNS: $ALB_DNS"
+
       - name: Build y push Frontend
         id: build-frontend
         run: |
           IMAGE=${{ steps.login-ecr.outputs.registry }}/frontend-angular:latest
-          docker build --no-cache -t $IMAGE ./frontend-angular
+          API_URL=""
+          if [ -n "${{ steps.get-alb.outputs.alb_dns }}" ]; then
+            API_URL="http://${{ steps.get-alb.outputs.alb_dns }}"
+          fi
+          docker build --no-cache \
+            --build-arg API_URL="$API_URL" \
+            -t $IMAGE ./frontend-angular
           docker push $IMAGE
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
@@ -83,10 +98,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Obtener ALB DNS actual
+        id: get-alb-backend
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --query "LoadBalancers[?contains(LoadBalancerName,'online-sales')].DNSName" \
+            --output text 2>/dev/null || true)
+          echo "alb_dns=$ALB_DNS" >> $GITHUB_OUTPUT
+          echo "ALB DNS: $ALB_DNS"
+
       - name: Inyectar variables en task definition
         run: |
           python3 - <<'PYEOF'
-          import json
+          import json, os
 
           with open('.aws/task-def-backend.json') as f:
               td = json.load(f)
@@ -96,10 +120,16 @@ jobs:
               'ACCOUNT_ID', '${{ secrets.AWS_ACCOUNT_ID }}'
           )
 
+          # Construir PAYMENT_SERVICE_URL dinámicamente desde el ALB actual
+          alb_dns = '${{ steps.get-alb-backend.outputs.alb_dns }}'
+          payment_url = f'http://{alb_dns}/payment/pay' if alb_dns else \
+              '${{ secrets.PAYMENT_SERVICE_URL }}'
+
           # Inyectar variables de entorno en el contenedor
           env = td['containerDefinitions'][0]['environment']
           updates = {
               'DATABASE_URL':            '${{ secrets.DATABASE_URL }}',
+              'PAYMENT_SERVICE_URL':     payment_url,
               'NOTIFICATION_SERVICE_URL':'http://${{ secrets.EC2_NOTIFICATION_HOST }}:8002',
               'AWS_ACCESS_KEY_ID':       '${{ secrets.AWS_ACCESS_KEY_ID }}',
               'AWS_SECRET_ACCESS_KEY':   '${{ secrets.AWS_SECRET_ACCESS_KEY }}',
@@ -114,7 +144,6 @@ jobs:
           for e in env:
               if e['name'] in updates:
                   e['value'] = updates[e['name']]
-          # Agregar DATABASE_URL si no estaba en el template
           names = {e['name'] for e in env}
           for k, v in updates.items():
               if k not in names:

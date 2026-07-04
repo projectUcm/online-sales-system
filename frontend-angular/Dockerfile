@@ -7,6 +7,13 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Inject runtime API URL if provided via build arg
+ARG API_URL=""
+RUN if [ -n "$API_URL" ]; then \
+      sed -i "s|private baseUrl = '[^']*'|private baseUrl = '$API_URL'|" src/app/services/api.ts src/app/services/auth.ts; \
+    fi
+
 RUN npm run build
 
 # Stage 2: Production
