@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     payment_service_url: str = "http://online-sales-alb-701754504.us-east-1.elb.amazonaws.com/payment/pay"
     notification_service_url: str = "http://localhost:8002"
+    audit_service_url: str = "http://online-sales-alb-701754504.us-east-1.elb.amazonaws.com"
 
     # AWS (solo para S3)
     aws_region: str = "us-east-1"

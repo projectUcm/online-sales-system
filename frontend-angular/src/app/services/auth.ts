@@ -70,6 +70,9 @@ export class AuthService {
   }
 
   logout(): void {
+    if (this.isLoggedIn()) {
+      firstValueFrom(this.http.post(`${this.baseUrl}/users/logout`, {}).pipe(timeout(5000))).catch(() => {});
+    }
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.userKey);
     this.router.navigate(['/products']);

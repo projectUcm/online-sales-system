@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -7,6 +7,7 @@ from app.models.review import Review
 from app.schemas.product_schema import Product as ProductSchema, ProductCreate
 from app.services.auth_service import require_admin
 from app.services.notification_client import send_product_whatsapp, send_product_deleted_whatsapp
+from app.services.audit_client import log_event
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -49,7 +50,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=ProductSchema)
-def create_product(data: ProductCreate, db: Session = Depends(get_db), admin=Depends(require_admin)):
+def create_product(data: ProductCreate, request: Request, db: Session = Depends(get_db), admin=Depends(require_admin)):
     product = Product(name=data.name, price=data.price, stock=data.stock)
     db.add(product)
     db.commit()
@@ -59,6 +60,8 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db), admin=Dep
             send_product_whatsapp(admin.phone, admin.name, product.name, product.price, product.stock)
         except Exception as e:
             print(f"[WARN] WhatsApp producto: {e}")
+    ip = request.client.host if request.client else ""
+    log_event("admin_action", admin.email, f"Producto creado: {product.name} (${product.price:,.0f})", ip)
     return product
 
 
@@ -81,7 +84,7 @@ def update_product(
 
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db), admin=Depends(require_admin)):
+def delete_product(product_id: int, request: Request, db: Session = Depends(get_db), admin=Depends(require_admin)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
@@ -93,4 +96,6 @@ def delete_product(product_id: int, db: Session = Depends(get_db), admin=Depends
             send_product_deleted_whatsapp(admin.phone, admin.name, product_name, product_price)
         except Exception as e:
             print(f"[WARN] WhatsApp eliminación producto: {e}")
+    ip = request.client.host if request.client else ""
+    log_event("admin_action", admin.email, f"Producto eliminado: {product_name}", ip)
     return {"message": "Producto eliminado"}

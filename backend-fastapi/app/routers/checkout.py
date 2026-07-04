@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List
@@ -13,6 +13,7 @@ from app.models.user import User
 from app.services.auth_service import get_current_user
 from app.services.payment_service import process_payment
 from app.services.notification_client import send_purchase_email, send_payment_email, send_purchase_whatsapp
+from app.services.audit_client import log_event
 
 router = APIRouter(prefix="/checkout", tags=["Checkout"])
 
@@ -71,9 +72,11 @@ def _decrement_stock(items_raw, db: Session):
 def checkout(
     data: CheckoutRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ip = request.client.host if request.client else ""
     if data.items:
         total, items_detail = _build_items(data.items, db)
         if total == 0:
@@ -115,15 +118,21 @@ def checkout(
             background_tasks.add_task(send_payment_email, current_user.email, transaction_id, "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
             if current_user.phone:
                 background_tasks.add_task(send_purchase_whatsapp, current_user.phone, current_user.name, order_ref, now, items_detail, total)
+            log_event("purchase", current_user.email, f"Compra #{order_ref} por ${total:,.0f}", ip)
+            log_event("payment", current_user.email, f"Pago aprobado #{order_ref}, transacción {transaction_id}", ip)
         except Exception as e:
             print(f"[ERROR] No se pudo guardar la orden: {e}")
+            log_event("system_error", current_user.email, f"Error al guardar orden: {e}", ip)
             db.rollback()
+    else:
+        log_event("payment", current_user.email, f"Pago rechazado: {result.get('message', '')}", ip)
 
     return result
 
 
 @router.post("/guest")
-def guest_checkout(data: GuestCheckoutRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def guest_checkout(data: GuestCheckoutRequest, background_tasks: BackgroundTasks, request: Request, db: Session = Depends(get_db)):
+    ip = request.client.host if request.client else ""
     if not data.items:
         raise HTTPException(status_code=400, detail="El carrito está vacío")
 
@@ -160,8 +169,13 @@ def guest_checkout(data: GuestCheckoutRequest, background_tasks: BackgroundTasks
             transaction_id = result.get("transaction_id", "N/A")
             background_tasks.add_task(send_purchase_email, data.email, guest_name, order_ref, now, items_detail, total)
             background_tasks.add_task(send_payment_email, data.email, transaction_id, "Aprobado", now, total, f"Compra #{order_ref} en NEXSTORE")
+            log_event("purchase", data.email, f"Compra invitado #{order_ref} por ${total:,.0f}", ip)
+            log_event("payment", data.email, f"Pago aprobado #{order_ref}, transacción {transaction_id}", ip)
         except Exception as e:
             print(f"[ERROR] No se pudo guardar la orden de invitado: {e}")
+            log_event("system_error", data.email, f"Error al guardar orden invitado: {e}", ip)
             db.rollback()
+    else:
+        log_event("payment", data.email, f"Pago rechazado (invitado): {result.get('message', '')}", ip)
 
     return result

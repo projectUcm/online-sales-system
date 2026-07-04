@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.product import Product
@@ -7,6 +7,7 @@ from app.models.review import Review
 from app.models.user import User
 from app.services.auth_service import get_current_user
 from app.services.s3_service import upload_review_photo, get_review_photo_url
+from app.services.audit_client import log_event
 
 router = APIRouter(prefix="/products", tags=["Reviews"])
 
@@ -39,12 +40,14 @@ def list_reviews(product_id: int, db: Session = Depends(get_db)):
 @router.post("/{product_id}/reviews")
 async def create_review(
     product_id: int,
+    request: Request,
     rating: int = Form(...),
     comment: str = Form(""),
     photo: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ip = request.client.host if request.client else ""
     if not db.query(Product).filter(Product.id == product_id).first():
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     if rating < 1 or rating > 5:
@@ -58,6 +61,7 @@ async def create_review(
         photo_key = upload_review_photo(
             product_id, current_user.id, photo.filename, content, photo.content_type or ""
         )
+        log_event("file_upload", current_user.email, f"Foto subida en reseña de producto #{product_id}", ip)
 
     review = Review(
         product_id=product_id,

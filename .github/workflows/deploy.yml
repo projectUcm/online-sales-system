@@ -19,6 +19,7 @@ jobs:
       payment-image: ${{ steps.build-payment.outputs.image }}
       frontend-image: ${{ steps.build-frontend.outputs.image }}
       notification-image: ${{ steps.build-notification.outputs.image }}
+      audit-image: ${{ steps.build-audit.outputs.image }}
 
     steps:
       - name: Checkout repositorio
@@ -82,6 +83,14 @@ jobs:
           docker push $IMAGE
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
+      - name: Build y push Audit Service
+        id: build-audit
+        run: |
+          IMAGE=${{ steps.login-ecr.outputs.registry }}/audit-service:latest
+          docker build -t $IMAGE ./audit-service
+          docker push $IMAGE
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
@@ -131,6 +140,7 @@ jobs:
               'DATABASE_URL':            '${{ secrets.DATABASE_URL }}',
               'PAYMENT_SERVICE_URL':     payment_url,
               'NOTIFICATION_SERVICE_URL':'http://${{ secrets.EC2_NOTIFICATION_PRIVATE_IP }}:8002',
+              'AUDIT_SERVICE_URL':       f'http://{alb_dns}' if alb_dns else '${{ secrets.AUDIT_SERVICE_URL }}',
               'AWS_ACCESS_KEY_ID':       '${{ secrets.AWS_ACCESS_KEY_ID }}',
               'AWS_SECRET_ACCESS_KEY':   '${{ secrets.AWS_SECRET_ACCESS_KEY }}',
               'SMTP_USER':               '${{ secrets.SMTP_USER }}',
@@ -268,6 +278,92 @@ jobs:
           service: frontend-service
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+
+  deploy-audit:
+    name: Deploy Audit Service
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Inyectar variables en task definition
+        run: |
+          python3 - <<'PYEOF'
+          import json
+
+          with open('.aws/task-def-audit.json') as f:
+              td = json.load(f)
+
+          td['executionRoleArn'] = td['executionRoleArn'].replace(
+              'ACCOUNT_ID', '${{ secrets.AWS_ACCOUNT_ID }}'
+          )
+
+          env = td['containerDefinitions'][0]['environment']
+          updates = {
+              'AWS_ACCESS_KEY_ID':     '${{ secrets.AWS_ACCESS_KEY_ID }}',
+              'AWS_SECRET_ACCESS_KEY': '${{ secrets.AWS_SECRET_ACCESS_KEY }}',
+          }
+          for e in env:
+              if e['name'] in updates:
+                  e['value'] = updates[e['name']]
+
+          with open('.aws/task-def-audit.json', 'w') as f:
+              json.dump(td, f, indent=2)
+          PYEOF
+
+      - name: Render task definition audit
+        id: render-audit
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-def-audit.json
+          container-name: audit
+          image: ${{ needs.build.outputs.audit-image }}
+
+      - name: Deploy ECS Audit
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-audit.outputs.task-definition }}
+          service: audit-service
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Ensure ALB has /events* rule pointing to audit service
+        run: |
+          ALB_ARN=$(aws elbv2 describe-load-balancers --query "LoadBalancers[?contains(LoadBalancerName,'online-sales')].LoadBalancerArn" --output text)
+          LISTENER_ARN=$(aws elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" --query "Listeners[?Port==\`80\`].ListenerArn" --output text)
+          AUDIT_TG_ARN=$(aws elbv2 describe-target-groups --query "TargetGroups[?contains(TargetGroupName,'audit')].TargetGroupArn" --output text)
+
+          if [ -z "$AUDIT_TG_ARN" ]; then
+            echo "No existe target group para audit-service todavía, se omite la regla."
+            exit 0
+          fi
+
+          EXISTING=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" \
+            --query "Rules[?Conditions[?Field=='path-pattern' && Values[?contains(@,'/events')]]].RuleArn" \
+            --output text)
+
+          if [ -z "$EXISTING" ]; then
+            MAX_PRIO=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" \
+              --query "max(Rules[?Priority!='default'].Priority)" --output text 2>/dev/null || echo "10")
+            NEXT_PRIO=$((MAX_PRIO + 1))
+            aws elbv2 create-rule \
+              --listener-arn "$LISTENER_ARN" \
+              --conditions Field=path-pattern,Values='/events*' \
+              --priority "$NEXT_PRIO" \
+              --actions Type=forward,TargetGroupArn="$AUDIT_TG_ARN"
+            echo "Created ALB rule for /events* -> audit-service (priority $NEXT_PRIO)"
+          else
+            echo "ALB rule for /events* already exists: $EXISTING"
+          fi
 
   deploy-notification:
     name: Deploy Notification Service (EC2 via SSH)

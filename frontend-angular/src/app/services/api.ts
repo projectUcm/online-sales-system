@@ -60,6 +60,15 @@ export interface AdminStats {
   total_clients: number;
 }
 
+export interface AuditEvent {
+  id: string;
+  created_at: string;
+  event_type: string;
+  user_email: string;
+  description: string;
+  ip_address: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private baseUrl = 'http://online-sales-alb-701754504.us-east-1.elb.amazonaws.com';
@@ -211,6 +220,13 @@ export class ApiService {
   getAllOrders(): Promise<any[]> {
     return firstValueFrom(
       this.http.get<any[]>(`${this.baseUrl}/orders/all`).pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  getAuditEvents(eventType: string = ''): Promise<AuditEvent[]> {
+    const query = eventType ? `?event_type=${encodeURIComponent(eventType)}` : '';
+    return firstValueFrom(
+      this.http.get<AuditEvent[]>(`${this.baseUrl}/events/${query}`).pipe(timeout(HTTP_TIMEOUT)),
     );
   }
 }

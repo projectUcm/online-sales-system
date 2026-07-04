@@ -1,9 +1,22 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, Product, AdminStats } from '../../services/api';
+import { ApiService, Product, AdminStats, AuditEvent } from '../../services/api';
 import { AuthService } from '../../services/auth';
 import { Router } from '@angular/router';
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  user_register: 'Registro de usuario',
+  login: 'Inicio de sesión',
+  login_failed: 'Inicio de sesión fallido',
+  logout: 'Cierre de sesión',
+  purchase: 'Compra',
+  payment: 'Pago',
+  file_upload: 'Carga de archivo',
+  account_validation: 'Validación de cuenta',
+  admin_action: 'Acción administrativa',
+  system_error: 'Error del sistema',
+};
 
 @Component({
   selector: 'app-admin',
@@ -13,10 +26,14 @@ import { Router } from '@angular/router';
   styleUrl: './admin.css',
 })
 export class AdminComponent implements OnInit {
-  tab: 'products' | 'orders' = 'products';
+  tab: 'products' | 'orders' | 'audit' = 'products';
   stats: AdminStats = { total_orders: 0, total_revenue: 0, total_products: 0, total_clients: 0 };
   products: Product[] = [];
   allOrders: any[] = [];
+  auditEvents: AuditEvent[] = [];
+  auditFilter = '';
+  auditLoading = false;
+  eventTypes = Object.keys(EVENT_TYPE_LABELS);
   loading = false;
   error = '';
   success = '';
@@ -57,10 +74,27 @@ export class AdminComponent implements OnInit {
     finally { this.cdr.markForCheck(); }
   }
 
-  async setTab(t: 'products' | 'orders') {
+  async setTab(t: 'products' | 'orders' | 'audit') {
     this.tab = t;
     this.cdr.detectChanges();
     if (t === 'orders' && this.allOrders.length === 0) await this.loadOrders();
+    if (t === 'audit' && this.auditEvents.length === 0) await this.loadAuditEvents();
+  }
+
+  async loadAuditEvents() {
+    this.auditLoading = true;
+    try { this.auditEvents = await this.api.getAuditEvents(this.auditFilter); }
+    catch { this.auditEvents = []; }
+    finally { this.auditLoading = false; this.cdr.markForCheck(); }
+  }
+
+  async filterAudit(type: string) {
+    this.auditFilter = type;
+    await this.loadAuditEvents();
+  }
+
+  eventLabel(type: string): string {
+    return EVENT_TYPE_LABELS[type] ?? type;
   }
 
   openCreate() {

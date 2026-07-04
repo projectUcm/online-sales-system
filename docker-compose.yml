@@ -29,6 +29,16 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
 
+  audit-service:
+    build: ./audit-service
+    ports:
+      - "8003:8003"
+    environment:
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AUDIT_TABLE_NAME: ${AUDIT_TABLE_NAME:-audit_events}
+
   backend:
     build: ./backend-fastapi
     ports:
@@ -38,6 +48,7 @@ services:
       SECRET_KEY: change-me-in-production
       PAYMENT_SERVICE_URL: http://app-pagos:8001/payment/pay
       NOTIFICATION_SERVICE_URL: http://notification-service:8002
+      AUDIT_SERVICE_URL: http://audit-service:8003
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -56,6 +67,8 @@ services:
       app-pagos:
         condition: service_started
       notification-service:
+        condition: service_started
+      audit-service:
         condition: service_started
 
   app-pagos:
