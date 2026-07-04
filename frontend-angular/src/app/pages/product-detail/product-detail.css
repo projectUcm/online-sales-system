@@ -137,7 +137,8 @@
 }
 .pd-review-textarea:focus { outline: none; border-color: var(--accent); }
 
-.pd-photo-row { display: flex; align-items: center; gap: 12px; }
+.pd-photo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pd-storage-hint { font-size: 11.5px; color: var(--t3); margin-left: auto; }
 .pd-photo-btn { cursor: pointer; font-size: 13px; padding: 9px 16px; }
 
 .pd-photo-preview-wrap { position: relative; }

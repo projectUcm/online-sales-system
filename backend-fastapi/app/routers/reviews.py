@@ -1,17 +1,19 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
+from app.config.settings import settings
 from app.database import get_db
 from app.models.product import Product
 from app.models.review import Review
 from app.models.user import User
 from app.services.auth_service import get_current_user
-from app.services.s3_service import upload_review_photo, get_review_photo_url
+from app.services.s3_service import upload_review_photo, get_review_photo_url, get_user_review_storage_usage
 from app.services.audit_client import log_event
 
 router = APIRouter(prefix="/products", tags=["Reviews"])
 
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
+STORAGE_LIMIT = settings.s3_review_storage_limit_bytes
 
 
 def _serialize(review: Review) -> dict:
@@ -23,6 +25,18 @@ def _serialize(review: Review) -> dict:
         "comment": review.comment or "",
         "photo_url": get_review_photo_url(review.photo_key) if review.photo_key else None,
         "created_at": review.created_at,
+    }
+
+
+@router.get("/reviews/storage")
+def get_my_review_storage(current_user: User = Depends(get_current_user)):
+    used = get_user_review_storage_usage(current_user.id)
+    return {
+        "used_bytes": used,
+        "limit_bytes": STORAGE_LIMIT,
+        "available_bytes": max(0, STORAGE_LIMIT - used),
+        "used_mb": round(used / (1024 * 1024), 2),
+        "limit_mb": round(STORAGE_LIMIT / (1024 * 1024)),
     }
 
 
@@ -58,6 +72,12 @@ async def create_review(
         content = await photo.read()
         if len(content) > MAX_PHOTO_BYTES:
             raise HTTPException(status_code=400, detail="La foto no puede superar 5 MB")
+        current_usage = get_user_review_storage_usage(current_user.id)
+        if current_usage + len(content) > STORAGE_LIMIT:
+            raise HTTPException(
+                status_code=400,
+                detail="Sin espacio disponible para fotos de reseña (límite 200 MB). Elimina reseñas anteriores con foto o sube una imagen más liviana.",
+            )
         photo_key = upload_review_photo(
             product_id, current_user.id, photo.filename, content, photo.content_type or ""
         )

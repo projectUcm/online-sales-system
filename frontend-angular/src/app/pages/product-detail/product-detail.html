@@ -115,6 +115,7 @@
                 <button type="button" class="pd-photo-remove" (click)="clearPhoto()">×</button>
               </div>
             }
+            <span class="pd-storage-hint">{{ storageUsedMb | number:'1.0-1' }} / {{ storageLimitMb }} MB usados en fotos</span>
           </div>
 
           <button class="btn btn-primary" (click)="submitReview()" [disabled]="submittingReview">

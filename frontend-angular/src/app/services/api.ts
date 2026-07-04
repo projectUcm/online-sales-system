@@ -229,4 +229,11 @@ export class ApiService {
       this.http.get<AuditEvent[]>(`${this.baseUrl}/events/${query}`).pipe(timeout(HTTP_TIMEOUT)),
     );
   }
+
+  getReviewStorage(): Promise<{ used_mb: number; limit_mb: number; available_bytes: number }> {
+    return firstValueFrom(
+      this.http.get<{ used_mb: number; limit_mb: number; available_bytes: number }>(`${this.baseUrl}/products/reviews/storage`)
+        .pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
 }

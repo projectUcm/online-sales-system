@@ -45,8 +45,12 @@ def ensure_bucket_exists():
         print(f"[S3] ensure_bucket_exists: {e}")
 
 
+def _user_prefix(user_id: int) -> str:
+    return f"reviews/user-{user_id}/"
+
+
 def upload_review_photo(product_id: int, user_id: int, filename: str, file_bytes: bytes, content_type: str = "") -> str:
-    key = f"reviews/{product_id}/{user_id}-{uuid.uuid4().hex}-{filename}"
+    key = f"{_user_prefix(user_id)}{product_id}-{uuid.uuid4().hex}-{filename}"
     client = _get_s3_client()
     client.put_object(
         Bucket=settings.s3_bucket_name,
@@ -67,3 +71,24 @@ def get_review_photo_url(key: str, expiration: int = 86400) -> str:
     except Exception as e:
         print(f"[S3 ERROR] get_review_photo_url: {e}")
         return ""
+
+
+def get_user_review_storage_usage(user_id: int) -> int:
+    """Bytes used by a user's review photos, for the per-user S3 storage quota."""
+    if not settings.aws_access_key_id:
+        return 0
+    try:
+        client = _get_s3_client()
+        prefix = _user_prefix(user_id)
+        total = 0
+        continuation = {}
+        while True:
+            resp = client.list_objects_v2(Bucket=settings.s3_bucket_name, Prefix=prefix, **continuation)
+            total += sum(obj["Size"] for obj in resp.get("Contents", []))
+            if not resp.get("IsTruncated"):
+                break
+            continuation = {"ContinuationToken": resp["NextContinuationToken"]}
+        return total
+    except Exception as e:
+        print(f"[S3 ERROR] get_user_review_storage_usage: {e}")
+        return 0

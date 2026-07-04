@@ -28,6 +28,8 @@ export class ProductDetailComponent implements OnInit {
   submittingReview = false;
   reviewError = '';
   reviewSuccess = '';
+  storageUsedMb = 0;
+  storageLimitMb = 200;
 
   constructor(
     private route: ActivatedRoute,
@@ -51,6 +53,14 @@ export class ProductDetailComponent implements OnInit {
     } finally {
       this.loading = false;
       this.cdr.markForCheck();
+    }
+    if (this.auth.isLoggedIn()) {
+      try {
+        const storage = await this.api.getReviewStorage();
+        this.storageUsedMb = storage.used_mb;
+        this.storageLimitMb = storage.limit_mb;
+        this.cdr.markForCheck();
+      } catch {}
     }
   }
 
@@ -82,6 +92,7 @@ export class ProductDetailComponent implements OnInit {
     this.reviewSuccess = '';
     this.submittingReview = true;
     try {
+      const uploadedPhoto = this.reviewPhoto;
       const review = await this.api.createReview(
         this.product.id, this.reviewRating, this.reviewComment.trim(), this.reviewPhoto,
       );
@@ -91,6 +102,7 @@ export class ProductDetailComponent implements OnInit {
       this.clearPhoto();
       this.reviewSuccess = '¡Gracias por tu reseña!';
       this.recalculateRating();
+      if (uploadedPhoto) this.storageUsedMb += uploadedPhoto.size / (1024 * 1024);
     } catch (err: any) {
       this.reviewError = err?.error?.detail || 'No se pudo enviar la reseña';
     } finally {

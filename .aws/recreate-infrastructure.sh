@@ -367,6 +367,34 @@ aws ecs update-service \
 log "audit-service → desired: 1"
 
 # ─────────────────────────────────────────────
+# 7b. Auto scaling (min 1 / max 3, target tracking CPU 65%)
+# ─────────────────────────────────────────────
+log "Configurando auto-scaling en los servicios ECS..."
+for svc in frontend-service backend-service payment-service audit-service; do
+  aws application-autoscaling register-scalable-target \
+    --service-namespace ecs \
+    --resource-id "service/$CLUSTER/$svc" \
+    --scalable-dimension ecs:service:DesiredCount \
+    --min-capacity 1 --max-capacity 3 \
+    --region "$REGION" > /dev/null 2>&1 || true
+
+  aws application-autoscaling put-scaling-policy \
+    --service-namespace ecs \
+    --resource-id "service/$CLUSTER/$svc" \
+    --scalable-dimension ecs:service:DesiredCount \
+    --policy-name "${svc}-cpu-scaling" \
+    --policy-type TargetTrackingScaling \
+    --target-tracking-scaling-policy-configuration '{
+      "TargetValue": 65.0,
+      "PredefinedMetricSpecification": {"PredefinedMetricType": "ECSServiceAverageCPUUtilization"},
+      "ScaleInCooldown": 120,
+      "ScaleOutCooldown": 60
+    }' \
+    --region "$REGION" > /dev/null 2>&1 || true
+  log "Auto-scaling configurado para $svc (min 1 / max 3, CPU 65%)"
+done
+
+# ─────────────────────────────────────────────
 # 8. IAM Role para Lambda (solo si no existe)
 # ─────────────────────────────────────────────
 LAMBDA_ROLE="lambda-s3-notification-role"
