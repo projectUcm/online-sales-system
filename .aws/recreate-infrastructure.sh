@@ -416,16 +416,12 @@ log "Actualizando archivos fuente con el nuevo ALB DNS..."
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Update frontend API base URL
-API_TS="$REPO_ROOT/frontend-angular/src/app/services/api.ts"
-sed -i.bak "s|private baseUrl = '[^']*'|private baseUrl = 'http://$ALB_DNS'|" "$API_TS"
-rm -f "$API_TS.bak"
-log "frontend api.ts actualizado → http://$ALB_DNS"
-
-AUTH_TS="$REPO_ROOT/frontend-angular/src/app/services/auth.ts"
-sed -i.bak "s|private baseUrl = '[^']*'|private baseUrl = 'http://$ALB_DNS'|" "$AUTH_TS"
-rm -f "$AUTH_TS.bak"
-log "frontend auth.ts actualizado → http://$ALB_DNS"
+# El frontend apunta al dominio público (No-IP), no al DNS del ALB, para
+# cumplir el requisito de "aplicación accesible mediante dominio propio".
+# IMPORTANTE: si el ALB se recrea, sus IPs cambian. Hay que actualizar a mano
+# el registro A de nexstore.sytes.net en No-IP con la IP vigente:
+#   dig +short $ALB_DNS
+log "IMPORTANTE: actualiza el registro A de nexstore.sytes.net en No-IP con: $(dig +short "$ALB_DNS" | head -1)"
 
 # Update backend default payment URL
 SETTINGS_PY="$REPO_ROOT/backend-fastapi/app/config/settings.py"
@@ -442,8 +438,6 @@ log "task-def-backend.json actualizado"
 # Commit and push to trigger CI/CD pipeline
 cd "$REPO_ROOT"
 git add \
-  frontend-angular/src/app/services/api.ts \
-  frontend-angular/src/app/services/auth.ts \
   backend-fastapi/app/config/settings.py \
   .aws/task-def-backend.json
 
@@ -465,13 +459,14 @@ echo "============================================"
 echo "  ALB DNS:  http://$ALB_DNS"
 echo ""
 echo "  Archivos actualizados automáticamente:"
-echo "    - frontend-angular/src/app/services/api.ts"
-echo "    - frontend-angular/src/app/services/auth.ts"
 echo "    - backend-fastapi/app/config/settings.py"
 echo "    - .aws/task-def-backend.json"
 echo ""
+echo "  RECUERDA actualizar a mano el registro A de"
+echo "  nexstore.sytes.net en No-IP con la IP vigente del ALB."
+echo ""
 echo "  CI/CD pipeline iniciado para redeployar"
-echo "  el frontend y el backend con el nuevo DNS."
+echo "  el backend con el nuevo DNS."
 echo ""
 echo "  RDS y EC2 pueden tardar 3-5 min adicionales"
 echo "  en estar completamente disponibles."

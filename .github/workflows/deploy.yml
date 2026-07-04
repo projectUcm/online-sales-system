@@ -65,10 +65,9 @@ jobs:
         id: build-frontend
         run: |
           IMAGE=${{ steps.login-ecr.outputs.registry }}/frontend-angular:latest
-          API_URL=""
-          if [ -n "${{ steps.get-alb.outputs.alb_dns }}" ]; then
-            API_URL="http://${{ steps.get-alb.outputs.alb_dns }}"
-          fi
+          # Dominio público (No-IP) en vez del DNS del ALB: si el ALB se recrea,
+          # el registro A en No-IP se actualiza a mano con la IP vigente.
+          API_URL="http://nexstore.sytes.net"
           docker build --no-cache \
             --build-arg API_URL="$API_URL" \
             -t $IMAGE ./frontend-angular
