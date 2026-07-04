@@ -71,7 +71,7 @@ export interface AuditEvent {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private baseUrl = 'http://online-sales-alb-701754504.us-east-1.elb.amazonaws.com';
+  private baseUrl = 'http://nexstore.sytes.net';
 
   constructor(private http: HttpClient) {}
 
