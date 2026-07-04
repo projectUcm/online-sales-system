@@ -192,6 +192,19 @@ TG_PAYMENT_ARN=$(aws elbv2 create-target-group \
   --output text)
 log "TG payment: $TG_PAYMENT_ARN"
 
+TG_AUDIT_ARN=$(aws elbv2 create-target-group \
+  --name tg-audit \
+  --protocol HTTP \
+  --port 8003 \
+  --vpc-id "$VPC_ID" \
+  --target-type ip \
+  --health-check-path "/health" \
+  --health-check-interval-seconds 30 \
+  --region "$REGION" \
+  --query "TargetGroups[0].TargetGroupArn" \
+  --output text)
+log "TG audit: $TG_AUDIT_ARN"
+
 # ─────────────────────────────────────────────
 # 5. Wait for ALB to be active
 # ─────────────────────────────────────────────
@@ -243,9 +256,9 @@ aws elbv2 create-rule \
   --region "$REGION" > /dev/null
 log "Regla /payment/* → payment (prioridad 20)"
 
-# Rutas reales del backend (users/products/cart/checkout/files) → backend
+# Rutas reales del backend (users/products/cart/checkout) → backend
 priority=30
-for path in "/users/*" "/products/*" "/cart/*" "/checkout/*" "/files/*"; do
+for path in "/users/*" "/products/*" "/cart/*" "/checkout/*"; do
   aws elbv2 create-rule \
     --listener-arn "$LISTENER_ARN" \
     --conditions Field=path-pattern,Values="$path" \
@@ -255,6 +268,46 @@ for path in "/users/*" "/products/*" "/cart/*" "/checkout/*" "/files/*"; do
   log "Regla $path → backend (prioridad $priority)"
   priority=$((priority+1))
 done
+
+# /events* → audit-service
+aws elbv2 create-rule \
+  --listener-arn "$LISTENER_ARN" \
+  --conditions Field=path-pattern,Values='/events*' \
+  --priority 40 \
+  --actions Type=forward,TargetGroupArn="$TG_AUDIT_ARN" \
+  --region "$REGION" > /dev/null
+log "Regla /events* → audit-service (prioridad 40)"
+
+# Permitir que el ALB llegue al audit-service en el puerto 8003
+aws ec2 authorize-security-group-ingress \
+  --group-id sg-0586c7148a324ebbf \
+  --protocol tcp --port 8003 \
+  --source-group "$ALB_SG" \
+  --region "$REGION" > /dev/null 2>&1 || log "Regla SG puerto 8003 ya existía"
+
+# Log group de CloudWatch para audit-task (ECS falla si no existe de antemano)
+aws logs create-log-group --log-group-name /ecs/audit-task --region "$REGION" > /dev/null 2>&1 || true
+
+# Tabla DynamoDB de auditoría (no se elimina al recrear infra, solo se crea si falta)
+if ! aws dynamodb describe-table --table-name audit_events --region "$REGION" > /dev/null 2>&1; then
+  log "Creando tabla DynamoDB audit_events..."
+  aws dynamodb create-table \
+    --table-name audit_events \
+    --attribute-definitions \
+      AttributeName=id,AttributeType=S \
+      AttributeName=event_type,AttributeType=S \
+      AttributeName=created_at,AttributeType=S \
+      AttributeName=gsi_pk,AttributeType=S \
+    --key-schema AttributeName=id,KeyType=HASH \
+    --global-secondary-indexes \
+      '[{"IndexName":"by_event_type","KeySchema":[{"AttributeName":"event_type","KeyType":"HASH"},{"AttributeName":"created_at","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"by_time","KeySchema":[{"AttributeName":"gsi_pk","KeyType":"HASH"},{"AttributeName":"created_at","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]' \
+    --billing-mode PAY_PER_REQUEST \
+    --region "$REGION" > /dev/null
+  aws dynamodb wait table-exists --table-name audit_events --region "$REGION"
+  log "Tabla audit_events creada."
+else
+  log "Tabla audit_events ya existe."
+fi
 
 # ─────────────────────────────────────────────
 # 6b. If RDS was just created, wait for it and update DATABASE_URL secret
@@ -304,6 +357,14 @@ aws ecs update-service \
   --load-balancers "targetGroupArn=$TG_PAYMENT_ARN,containerName=payment,containerPort=8001" \
   --region "$REGION" > /dev/null
 log "payment-service → desired: 1"
+
+aws ecs update-service \
+  --cluster "$CLUSTER" \
+  --service audit-service \
+  --desired-count 1 \
+  --load-balancers "targetGroupArn=$TG_AUDIT_ARN,containerName=audit,containerPort=8003" \
+  --region "$REGION" > /dev/null
+log "audit-service → desired: 1"
 
 # ─────────────────────────────────────────────
 # 8. IAM Role para Lambda (solo si no existe)
