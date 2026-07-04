@@ -44,6 +44,7 @@ def run_migrations():
                 )""",
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_email VARCHAR",
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_name VARCHAR",
+                "ALTER TABLE users DROP COLUMN IF EXISTS storage_used",
             ]
         else:
             migrations = []
@@ -59,6 +60,8 @@ def run_migrations():
                 migrations.append("ALTER TABLE users ADD COLUMN verification_code VARCHAR")
             if "role" not in existing:
                 migrations.append("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'client'")
+            if "storage_used" in existing:
+                migrations.append("ALTER TABLE users DROP COLUMN storage_used")
             raw2 = conn.execute(text("PRAGMA table_info(cart_items)")).fetchall()
             existing2 = {r[1] for r in raw2}
             if "user_id" not in existing2:
