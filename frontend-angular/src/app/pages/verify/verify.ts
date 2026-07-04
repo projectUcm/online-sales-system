@@ -17,6 +17,9 @@ export class VerifyComponent implements OnInit {
   error = '';
   success = '';
   loading = false;
+  resending = false;
+  resendCooldown = 0;
+  private cooldownInterval?: ReturnType<typeof setInterval>;
 
   constructor(
     private auth: AuthService,
@@ -46,5 +49,33 @@ export class VerifyComponent implements OnInit {
     } finally {
       this.loading = false;
     }
+  }
+
+  async resendCode() {
+    if (!this.email || this.resending || this.resendCooldown > 0) {
+      if (!this.email) this.error = 'Ingresa tu email para reenviar el código';
+      return;
+    }
+    this.resending = true;
+    this.error = '';
+    this.success = '';
+    try {
+      await this.auth.resendCode(this.email);
+      this.success = 'Código reenviado. Revisa tu correo.';
+      this.startCooldown(30);
+    } catch (err: any) {
+      this.error = err?.error?.detail || 'No se pudo reenviar el código';
+    } finally {
+      this.resending = false;
+    }
+  }
+
+  private startCooldown(seconds: number) {
+    this.resendCooldown = seconds;
+    clearInterval(this.cooldownInterval);
+    this.cooldownInterval = setInterval(() => {
+      this.resendCooldown--;
+      if (this.resendCooldown <= 0) clearInterval(this.cooldownInterval);
+    }, 1000);
   }
 }

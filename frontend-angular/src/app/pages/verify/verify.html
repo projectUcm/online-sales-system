@@ -45,6 +45,16 @@
       }
     </button>
 
+    <button class="btn btn-ghost auth-btn" (click)="resendCode()" [disabled]="resending || resendCooldown > 0">
+      @if (resending) {
+        <span class="spinner"></span> Reenviando...
+      } @else if (resendCooldown > 0) {
+        Reenviar código ({{ resendCooldown }}s)
+      } @else {
+        Reenviar código
+      }
+    </button>
+
     <p class="auth-footer">¿Ya verificaste? <a routerLink="/login">Inicia sesión</a></p>
   </div>
 </div>

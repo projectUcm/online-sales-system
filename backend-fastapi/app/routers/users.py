@@ -14,6 +14,10 @@ class PhoneUpdate(BaseModel):
     phone: str
 
 
+class ResendCode(BaseModel):
+    email: str
+
+
 @router.post("/register")
 def register(data: UserRegister, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():
@@ -51,6 +55,23 @@ def verify_account(data: UserVerify, db: Session = Depends(get_db)):
     user.verification_code = None
     db.commit()
     return {"message": "Cuenta verificada correctamente"}
+
+
+@router.post("/resend-code")
+def resend_code(data: ResendCode, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.is_verified:
+        return {"message": "Cuenta ya verificada"}
+    code = generate_verification_code()
+    user.verification_code = code
+    db.commit()
+    try:
+        send_verification_email(user.email, user.name, code)
+    except Exception as e:
+        print(f"[WARN] Email no enviado: {e}")
+    return {"message": "Código reenviado. Revisa tu correo."}
 
 
 @router.get("/me")

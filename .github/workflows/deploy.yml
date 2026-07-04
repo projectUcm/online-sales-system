@@ -293,13 +293,13 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: AWS_ACCOUNT_ID,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,SMTP_USER,SMTP_PASSWORD,SMTP_FROM,TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,TWILIO_FROM_NUMBER
           script: |
-            aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-            aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+            aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+            aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
             aws configure set region us-east-1
             aws ecr get-login-password --region us-east-1 | \
               docker login --username AWS --password-stdin \
-              ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com
-            docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest
+              "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+            docker pull "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest"
             docker stop notification-service 2>/dev/null || true
             docker rm notification-service 2>/dev/null || true
             docker run -d \
@@ -308,10 +308,10 @@ jobs:
               -p 8002:8002 \
               -e SMTP_HOST=smtp.gmail.com \
               -e SMTP_PORT=587 \
-              -e SMTP_USER=$SMTP_USER \
-              -e SMTP_PASSWORD=$SMTP_PASSWORD \
-              -e SMTP_FROM=$SMTP_FROM \
-              -e TWILIO_ACCOUNT_SID=$TWILIO_ACCOUNT_SID \
-              -e TWILIO_AUTH_TOKEN=$TWILIO_AUTH_TOKEN \
-              -e TWILIO_FROM_NUMBER=$TWILIO_FROM_NUMBER \
-              ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest
+              -e SMTP_USER="$SMTP_USER" \
+              -e SMTP_PASSWORD="$SMTP_PASSWORD" \
+              -e SMTP_FROM="$SMTP_FROM" \
+              -e TWILIO_ACCOUNT_SID="$TWILIO_ACCOUNT_SID" \
+              -e TWILIO_AUTH_TOKEN="$TWILIO_AUTH_TOKEN" \
+              -e TWILIO_FROM_NUMBER="$TWILIO_FROM_NUMBER" \
+              "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest"

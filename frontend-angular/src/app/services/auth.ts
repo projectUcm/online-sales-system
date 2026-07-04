@@ -62,6 +62,13 @@ export class AuthService {
     );
   }
 
+  async resendCode(email: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post(`${this.baseUrl}/users/resend-code`, { email })
+        .pipe(timeout(15000))
+    );
+  }
+
   logout(): void {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.userKey);
