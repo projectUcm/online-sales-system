@@ -4,8 +4,9 @@ from app.database import Base, engine, SessionLocal, run_migrations
 from app.models.product import Product
 from app.models.user import User  # noqa: F401
 from app.models.cart import CartItem  # noqa: F401
-from app.routers import products, users, cart, checkout, files, orders
+from app.routers import products, users, cart, checkout, orders, reviews
 from app.models.order import Order  # noqa: F401
+from app.models.review import Review  # noqa: F401
 from app.services.auth_service import hash_password
 
 Base.metadata.create_all(bind=engine)
@@ -28,8 +29,8 @@ app.include_router(products.router)
 app.include_router(users.router)
 app.include_router(cart.router)
 app.include_router(checkout.router)
-app.include_router(files.router)
 app.include_router(orders.router)
+app.include_router(reviews.router)
 
 
 @app.on_event("startup")
@@ -44,7 +45,6 @@ def seed_admin():
             phone="",
             is_verified=True,
             verification_code=None,
-            storage_used=0,
             role="admin",
         ))
         db.commit()

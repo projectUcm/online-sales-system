@@ -43,16 +43,6 @@ def send_payment_email(to: str, transaction_id: str, status: str, date: str, amo
         _direct(to, transaction_id, status, date, amount, summary)
 
 
-def send_file_upload_sms(phone: str, filename: str, upload_date: str, used_bytes: int, available_bytes: int):
-    ok = _post("/notify/sms/file-upload", {
-        "to": phone, "filename": filename, "upload_date": upload_date,
-        "used_bytes": used_bytes, "available_bytes": available_bytes,
-    })
-    if not ok:
-        from app.services.sms_service import send_file_upload_sms as _direct
-        _direct(phone, filename, upload_date, used_bytes, available_bytes)
-
-
 def send_purchase_whatsapp(phone: str, name: str, order_id: str, date: str, items: list, total: float):
     _post("/notify/sms/purchase", {
         "to": phone, "name": name, "order_id": order_id,

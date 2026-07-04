@@ -42,14 +42,6 @@ class PaymentEmailRequest(BaseModel):
     summary: str
 
 
-class FileUploadSmsRequest(BaseModel):
-    to: str
-    filename: str
-    upload_date: str
-    used_bytes: int
-    available_bytes: int
-
-
 class PurchaseWhatsappRequest(BaseModel):
     to: str
     name: str
@@ -136,17 +128,6 @@ def send_payment(req: PaymentEmailRequest):
     return send_email(req.to, subject, body)
 
 
-@router.post("/sms/file-upload")
-def send_file_sms(req: FileUploadSmsRequest):
-    used_mb = req.used_bytes / (1024 * 1024)
-    avail_mb = req.available_bytes / (1024 * 1024)
-    message = (
-        f"NEXSTORE - Archivo subido: {req.filename}\n"
-        f"Fecha: {req.upload_date}\n"
-        f"Espacio usado: {used_mb:.1f} MB\n"
-        f"Espacio disponible: {avail_mb:.1f} MB"
-    )
-    return send_sms(req.to, message)
 
 
 @router.post("/sms/product-created")

@@ -13,5 +13,7 @@ class ProductCreate(ProductBase):
 class Product(ProductBase):
     id: int
     stock: int
+    avg_rating: float | None = None
+    review_count: int = 0
 
     model_config = {"from_attributes": True}

@@ -1,3 +1,4 @@
+import uuid
 import boto3
 from botocore.exceptions import ClientError
 from app.config.settings import settings
@@ -44,78 +45,25 @@ def ensure_bucket_exists():
         print(f"[S3] ensure_bucket_exists: {e}")
 
 
-def upload_file(
-    user_id: int,
-    filename: str,
-    file_bytes: bytes,
-    content_type: str = "application/octet-stream",
-    phone: str = "",
-    storage_used_after: int = 0,
-) -> dict:
-    key = f"user-{user_id}/{filename}"
+def upload_review_photo(product_id: int, user_id: int, filename: str, file_bytes: bytes, content_type: str = "") -> str:
+    key = f"reviews/{product_id}/{user_id}-{uuid.uuid4().hex}-{filename}"
+    client = _get_s3_client()
+    client.put_object(
+        Bucket=settings.s3_bucket_name,
+        Key=key,
+        Body=file_bytes,
+        ContentType=content_type or "application/octet-stream",
+    )
+    return key
+
+
+def get_review_photo_url(key: str, expiration: int = 86400) -> str:
     try:
-        client = _get_s3_client()
-        metadata = {}
-        if phone:
-            metadata["user-phone"] = phone
-        if storage_used_after:
-            metadata["storage-used"] = str(storage_used_after)
-        client.put_object(
-            Bucket=settings.s3_bucket_name,
-            Key=key,
-            Body=file_bytes,
-            ContentType=content_type,
-            Metadata=metadata,
-        )
-        return {"success": True, "key": key, "size": len(file_bytes)}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def list_user_files(user_id: int) -> list:
-    prefix = f"user-{user_id}/"
-    try:
-        client = _get_s3_client()
-        response = client.list_objects_v2(Bucket=settings.s3_bucket_name, Prefix=prefix)
-        files = []
-        for obj in response.get("Contents", []):
-            name = obj["Key"].replace(prefix, "")
-            if name:
-                files.append({
-                    "name": name,
-                    "size": obj["Size"],
-                    "last_modified": obj["LastModified"].isoformat(),
-                    "key": obj["Key"],
-                })
-        return files
-    except Exception as e:
-        print(f"[S3 ERROR] list_user_files: {e}")
-        return []
-
-
-def get_user_storage_usage(user_id: int) -> int:
-    return sum(f["size"] for f in list_user_files(user_id))
-
-
-def delete_file(user_id: int, filename: str) -> bool:
-    key = f"user-{user_id}/{filename}"
-    try:
-        _get_s3_client().delete_object(Bucket=settings.s3_bucket_name, Key=key)
-        return True
-    except Exception as e:
-        print(f"[S3 ERROR] delete_file: {e}")
-        return False
-
-
-def get_presigned_url(user_id: int, filename: str, expiration: int = 3600) -> str:
-    key = f"user-{user_id}/{filename}"
-    try:
-        url = _get_s3_client().generate_presigned_url(
+        return _get_s3_client().generate_presigned_url(
             "get_object",
             Params={"Bucket": settings.s3_bucket_name, "Key": key},
             ExpiresIn=expiration,
         )
-        return url
     except Exception as e:
-        print(f"[S3 ERROR] presigned_url: {e}")
+        print(f"[S3 ERROR] get_review_photo_url: {e}")
         return ""

@@ -9,6 +9,18 @@ export interface Product {
   name: string;
   price: number;
   stock: number;
+  avg_rating?: number | null;
+  review_count?: number;
+}
+
+export interface Review {
+  id: number;
+  product_id: number;
+  user_name: string;
+  rating: number;
+  comment: string;
+  photo_url: string | null;
+  created_at: string;
 }
 
 export interface CartItem {
@@ -24,20 +36,6 @@ export interface PaymentResult {
   transaction_id?: string;
   amount?: number;
   message?: string;
-}
-
-export interface FileItem {
-  name: string;
-  size: number;
-  last_modified: string;
-  key: string;
-}
-
-export interface StorageInfo {
-  files: FileItem[];
-  storage_used: number;
-  storage_available: number;
-  storage_limit: number;
 }
 
 export interface OrderItem {
@@ -116,32 +114,25 @@ export class ApiService {
     );
   }
 
-  getFiles(): Promise<StorageInfo> {
+  getProduct(id: number): Promise<Product> {
     return firstValueFrom(
-      this.http.get<StorageInfo>(`${this.baseUrl}/files/`).pipe(timeout(HTTP_TIMEOUT)),
+      this.http.get<Product>(`${this.baseUrl}/products/${id}`).pipe(timeout(HTTP_TIMEOUT)),
     );
   }
 
-  uploadFile(file: File, phone: string = ''): Promise<any> {
+  getReviews(productId: number): Promise<Review[]> {
+    return firstValueFrom(
+      this.http.get<Review[]>(`${this.baseUrl}/products/${productId}/reviews`).pipe(timeout(HTTP_TIMEOUT)),
+    );
+  }
+
+  createReview(productId: number, rating: number, comment: string, photo: File | null): Promise<Review> {
     const fd = new FormData();
-    fd.append('file', file);
-    if (phone) fd.append('phone', phone);
+    fd.append('rating', String(rating));
+    fd.append('comment', comment);
+    if (photo) fd.append('photo', photo);
     return firstValueFrom(
-      this.http.post(`${this.baseUrl}/files/upload`, fd).pipe(timeout(60000)),
-    );
-  }
-
-  deleteFile(filename: string): Promise<any> {
-    return firstValueFrom(
-      this.http.delete(`${this.baseUrl}/files/${encodeURIComponent(filename)}`)
-        .pipe(timeout(HTTP_TIMEOUT)),
-    );
-  }
-
-  getDownloadUrl(filename: string): Promise<{ url: string }> {
-    return firstValueFrom(
-      this.http.get<{ url: string }>(`${this.baseUrl}/files/download/${encodeURIComponent(filename)}`)
-        .pipe(timeout(HTTP_TIMEOUT)),
+      this.http.post<Review>(`${this.baseUrl}/products/${productId}/reviews`, fd).pipe(timeout(60000)),
     );
   }
 

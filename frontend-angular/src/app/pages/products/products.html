@@ -30,23 +30,23 @@
   <div class="products-grid">
     @for (product of products; track product.id; let first = $first) {
       <div class="product-card" [class.adding]="addedId === product.id">
-        <div class="product-img-wrap">
+        <a [routerLink]="['/products', product.id]" class="product-img-wrap">
           <img [src]="getProductImage(product.name)" [alt]="product.name" class="product-img" [loading]="first ? 'eager' : 'lazy'" />
           <div class="product-overlay"></div>
           <span class="product-category">{{ getCategory(product.name) }}</span>
-        </div>
+        </a>
 
         <div class="product-body">
-          <h3 class="product-name">{{ product.name }}</h3>
+          <h3 class="product-name"><a [routerLink]="['/products', product.id]">{{ product.name }}</a></h3>
 
           <div class="product-meta">
             <div class="product-stars">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="rgba(245,158,11,.3)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <span>4.8</span>
+              @if (product.avg_rating) {
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <span>{{ product.avg_rating }} ({{ product.review_count }})</span>
+              } @else {
+                <span>Sin reseñas</span>
+              }
             </div>
             <div class="product-stock-pill">
               <span class="stock-dot"></span>{{ product.stock }} en stock

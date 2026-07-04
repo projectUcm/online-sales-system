@@ -1,0 +1,131 @@
+<div class="page">
+
+  @if (loading) {
+    <div class="pd-loading">Cargando producto...</div>
+  } @else if (notFound || !product) {
+    <div class="alert alert-err">Producto no encontrado.</div>
+    <a routerLink="/products" class="btn btn-ghost">← Volver a productos</a>
+  } @else {
+
+    <a routerLink="/products" class="pd-breadcrumb">← Volver a productos</a>
+
+    <div class="pd-main">
+      <div class="pd-gallery">
+        <img [src]="getProductImage(product.name)" [alt]="product.name" class="pd-img" />
+      </div>
+
+      <div class="pd-info">
+        <span class="pd-category">{{ getCategory(product.name) }}</span>
+        <h1 class="pd-title">{{ product.name }}</h1>
+
+        <a href="#reviews" class="pd-rating-summary">
+          @if (product.avg_rating) {
+            <span class="pd-rating-num">{{ product.avg_rating }}</span>
+            <span class="pd-stars">
+              @for (s of stars(product.avg_rating); track $index) {
+                <svg width="14" height="14" viewBox="0 0 24 24" [attr.fill]="s ? '#f59e0b' : 'rgba(245,158,11,.25)'"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              }
+            </span>
+            <span class="pd-rating-count">({{ product.review_count }} reseña{{ product.review_count === 1 ? '' : 's' }})</span>
+          } @else {
+            <span class="pd-rating-count">Sin reseñas todavía — sé el primero en opinar</span>
+          }
+        </a>
+
+        <div class="pd-price-row">
+          <span class="pd-price">${{ product.price | number:'1.0-0' }}</span>
+          <span class="pd-price-usd">CLP</span>
+        </div>
+
+        <div class="pd-stock">
+          <span class="stock-dot"></span>{{ product.stock }} unidades en stock
+        </div>
+
+        <button class="btn btn-primary pd-add-btn" [class.added]="added" (click)="addToCart()" [disabled]="added">
+          @if (added) {
+            ¡Agregado al carrito!
+          } @else {
+            Agregar al carrito
+          }
+        </button>
+      </div>
+    </div>
+
+    <section class="pd-reviews" id="reviews">
+      <h2>Opiniones del producto</h2>
+
+      @if (reviews.length === 0) {
+        <p class="pd-no-reviews">Todavía no hay reseñas para este producto.</p>
+      }
+
+      <div class="pd-review-list">
+        @for (review of reviews; track review.id) {
+          <div class="pd-review-card">
+            @if (review.photo_url) {
+              <img [src]="review.photo_url" [alt]="review.user_name + ' foto'" class="pd-review-photo" />
+            }
+            <div class="pd-review-body">
+              <div class="pd-review-head">
+                <span class="pd-review-stars">
+                  @for (s of stars(review.rating); track $index) {
+                    <svg width="12" height="12" viewBox="0 0 24 24" [attr.fill]="s ? '#f59e0b' : 'rgba(245,158,11,.25)'"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  }
+                </span>
+                <span class="pd-review-user">{{ review.user_name }}</span>
+                <span class="pd-review-date">{{ review.created_at | date:'d MMM y' }}</span>
+              </div>
+              @if (review.comment) {
+                <p class="pd-review-comment">{{ review.comment }}</p>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (auth.isLoggedIn() && !auth.isAdmin()) {
+        <div class="pd-review-form">
+          <h3>Deja tu reseña</h3>
+
+          @if (reviewError) { <div class="alert alert-err">{{ reviewError }}</div> }
+          @if (reviewSuccess) { <div class="alert alert-ok">{{ reviewSuccess }}</div> }
+
+          <div class="pd-star-picker">
+            @for (i of [1,2,3,4,5]; track i) {
+              <button type="button" class="pd-star-btn" (click)="reviewRating = i">
+                <svg width="24" height="24" viewBox="0 0 24 24" [attr.fill]="i <= reviewRating ? '#f59e0b' : 'rgba(245,158,11,.25)'"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </button>
+            }
+          </div>
+
+          <textarea
+            [(ngModel)]="reviewComment"
+            placeholder="Cuéntanos qué te pareció el producto..."
+            rows="3"
+            class="pd-review-textarea"
+          ></textarea>
+
+          <div class="pd-photo-row">
+            <label class="btn btn-ghost pd-photo-btn">
+              Agregar foto
+              <input type="file" accept="image/*" (change)="onPhotoSelect($event)" hidden />
+            </label>
+            @if (reviewPhotoPreview) {
+              <div class="pd-photo-preview-wrap">
+                <img [src]="reviewPhotoPreview" class="pd-photo-preview" alt="preview" />
+                <button type="button" class="pd-photo-remove" (click)="clearPhoto()">×</button>
+              </div>
+            }
+          </div>
+
+          <button class="btn btn-primary" (click)="submitReview()" [disabled]="submittingReview">
+            @if (submittingReview) { Enviando... } @else { Publicar reseña }
+          </button>
+        </div>
+      } @else if (!auth.isLoggedIn()) {
+        <p class="pd-login-hint"><a routerLink="/login">Inicia sesión</a> para dejar tu reseña.</p>
+      }
+    </section>
+
+  }
+
+</div>

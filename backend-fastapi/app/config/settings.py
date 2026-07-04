@@ -27,7 +27,6 @@ class Settings(BaseSettings):
 
     # Amazon S3
     s3_bucket_name: str = "nexstore-user-files"
-    s3_storage_limit_bytes: int = 2 * 1024 * 1024 * 1024  # 2 GB
 
     model_config = {"env_file": ".env"}
 

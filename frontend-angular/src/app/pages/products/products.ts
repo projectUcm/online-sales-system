@@ -1,5 +1,6 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ApiService, Product } from '../../services/api';
 import { CartService } from '../../services/cart.service';
 import { CartDrawerService } from '../../services/cart-drawer.service';
@@ -7,7 +8,7 @@ import { CartDrawerService } from '../../services/cart-drawer.service';
 @Component({
   selector: 'app-products',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './products.html',
   styleUrl: './products.css',
 })

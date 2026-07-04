@@ -142,9 +142,14 @@
   font-family: 'Syne', sans-serif;
   font-size: .95rem;
   font-weight: 700;
-  color: var(--t1);
   line-height: 1.35;
 }
+.product-name a {
+  color: var(--t1);
+  text-decoration: none;
+}
+.product-name a:hover { color: var(--accent); }
+.product-img-wrap { display: block; }
 
 .product-meta {
   display: flex;

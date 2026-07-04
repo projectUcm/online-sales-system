@@ -30,7 +30,6 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
         phone=data.phone or "",
         is_verified=False,
         verification_code=code,
-        storage_used=0,
         role="client",
     )
     db.add(user)
