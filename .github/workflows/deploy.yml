@@ -130,7 +130,7 @@ jobs:
           updates = {
               'DATABASE_URL':            '${{ secrets.DATABASE_URL }}',
               'PAYMENT_SERVICE_URL':     payment_url,
-              'NOTIFICATION_SERVICE_URL':'http://${{ secrets.EC2_NOTIFICATION_HOST }}:8002',
+              'NOTIFICATION_SERVICE_URL':'http://${{ secrets.EC2_NOTIFICATION_PRIVATE_IP }}:8002',
               'AWS_ACCESS_KEY_ID':       '${{ secrets.AWS_ACCESS_KEY_ID }}',
               'AWS_SECRET_ACCESS_KEY':   '${{ secrets.AWS_SECRET_ACCESS_KEY }}',
               'SMTP_USER':               '${{ secrets.SMTP_USER }}',

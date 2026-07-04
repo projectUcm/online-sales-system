@@ -96,13 +96,19 @@ USERDATA
   ALLOC_ID=$(aws ec2 allocate-address --domain vpc --region "$REGION" --query "AllocationId" --output text)
   aws ec2 associate-address --instance-id "$EC2_INSTANCE_ID" --allocation-id "$ALLOC_ID" --region "$REGION" > /dev/null
   NEW_EC2_IP=$(aws ec2 describe-addresses --allocation-ids "$ALLOC_ID" --region "$REGION" --query "Addresses[0].PublicIp" --output text)
-  log "Elastic IP asociada: $NEW_EC2_IP"
+  NEW_EC2_PRIVATE_IP=$(aws ec2 describe-instances --instance-ids "$EC2_INSTANCE_ID" --region "$REGION" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
+  log "Elastic IP asociada: $NEW_EC2_IP (privada: $NEW_EC2_PRIVATE_IP)"
 
+  # EC2_NOTIFICATION_HOST (IP publica) se usa para el deploy por SSH desde GitHub Actions.
+  # EC2_NOTIFICATION_PRIVATE_IP se usa como NOTIFICATION_SERVICE_URL del backend: las
+  # tareas ECS estan en la misma VPC y no pueden alcanzar la IP publica de otro recurso
+  # de la misma VPC (AWS no soporta hairpin NAT), por eso deben usar la IP privada.
   if command -v gh > /dev/null 2>&1; then
     gh secret set EC2_NOTIFICATION_HOST --body "$NEW_EC2_IP"
-    log "Secret EC2_NOTIFICATION_HOST actualizado -> $NEW_EC2_IP"
+    gh secret set EC2_NOTIFICATION_PRIVATE_IP --body "$NEW_EC2_PRIVATE_IP"
+    log "Secrets EC2_NOTIFICATION_HOST -> $NEW_EC2_IP y EC2_NOTIFICATION_PRIVATE_IP -> $NEW_EC2_PRIVATE_IP actualizados"
   else
-    log "IMPORTANTE: actualiza manualmente el secret EC2_NOTIFICATION_HOST con: $NEW_EC2_IP"
+    log "IMPORTANTE: actualiza manualmente EC2_NOTIFICATION_HOST=$NEW_EC2_IP y EC2_NOTIFICATION_PRIVATE_IP=$NEW_EC2_PRIVATE_IP"
   fi
 else
   EC2_STATUS=$(aws ec2 describe-instances \
